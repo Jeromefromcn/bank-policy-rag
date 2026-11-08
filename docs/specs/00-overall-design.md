@@ -1,6 +1,6 @@
 # 00 · Overall Design Spec
 
-- **Status**: Draft — awaiting author review
+- **Status**: Approved 2026-11-08 — open questions resolved in §11
 - **Scope**: whole project; every Phase spec (01–06) builds on this document
 - **Source of truth**: `ROADMAP.md`. This spec does not repeat the roadmap; it fixes the
   cross-cutting decisions that later Phases depend on, and defines how success is measured.
@@ -48,7 +48,8 @@ modules:
     code: OR-2
     title: Operational Resilience
     version: "V.1"            # as printed in the module
-    revisionDate: 2022-05-31  # placeholder — verified in Phase 0
+    revisionDate: 2022-05-31  # as listed in the SPM index
+    file: OR-2.pdf            # expected file name under corpus/raw/
     sha256: "<hex>"
 ```
 
@@ -203,6 +204,7 @@ Schema and distribution as in ROADMAP §5 Phase 0. Additional rules:
 - `expectedSources` is empty for `unanswerable` items.
 - For `restricted` items, `minClearance` is above `public`.
 - Every item is human-verified before commit (ROADMAP §10).
+- Every item has `split: dev | test` (§11 Q1).
 
 ### 6.2 How each item is run
 
@@ -227,6 +229,8 @@ the same expected source count once (the first, highest-ranked one).
   correctly refused / total. Also reported: **false refusal rate** on answerable items.
 - **Faithfulness** (Phase 3): for each `expectedPoint`, the judge returns a binary verdict
   "stated in the answer **and** supported by a cited chunk"; score = supported points / total.
+- **Citation support** (Phase 3, §11 Q2): fraction of cited sentences the judge rates as
+  supported by the chunk(s) they cite.
 - **Judge agreement** (Phase 3): fraction of the 20 human-labelled point verdicts on which
   judge and human agree; Cohen's κ reported alongside.
 - **Latency**: p50 and p95 per stage, from the response `latencyMs` fields.
@@ -286,26 +290,25 @@ Each Phase spec has a matching `NN-<name>-plan.md` implementation plan. Phase 0 
 
 | Item | Result | Date |
 |---|---|---|
-| Spring Boot / Spring AI versions | _pending_ | |
-| DeepSeek model names | _pending_ | |
-| SPM module versions | _pending_ | |
-| HKMA terms unchanged since 2026-11 | _pending_ | |
+| Spring Boot / Spring AI versions | Spring Boot **4.1.2** (latest GA on start.spring.io; Java 25 supported). Initializr pairs it with Spring AI BOM **2.0.1**; **2.0.2** is the latest GA on Maven Central (2.1.0 is still RC). Starters needed: `spring-ai-deepseek`, `spring-ai-ollama`, `spring-ai-mcp-server`. Use Spring AI 2.0.2 unless Initializr compatibility says otherwise | 2026-11-08 |
+| DeepSeek model names | **Changed since the roadmap was written.** Current API model ids: `deepseek-flash` (served by DeepSeek-V4.1-Flash-1017) and `deepseek-v4-pro`. `deepseek-chat` / `deepseek-reasoner` are no longer documented. Reasoning is a request parameter (`thinking: {type: enabled}`, `reasoning_effort`), not a separate model id. Defaults: generation `deepseek-flash`, judge `deepseek-v4-pro` with thinking enabled — both remain properties (§5) | 2026-11-08 |
+| SPM module versions | From the SPM index (dates) and PDF covers where seen. TM-G-1: V.1, 2003-06-24. TM-G-2: V.2, 2022-05-31. OR-1: revised 2022-07-25. OR-2: V.1, 2022-05-31. SA-2: 2001-12-28. OR-2 is assumed V.1 (first issue). Version strings not yet confirmed from a cover (OR-1, OR-2, SA-2) and all `sha256` values are to be filled in from the downloaded PDFs | 2026-11-08 |
+| HKMA terms unchanged since 2026-11 | Unchanged. Terms and Conditions of Use last revised 2019-08-26. ¶12: non-commercial display/download/reproduction in original format, unmodified, attributed, destroy on request. ¶13: prior written consent for linking. No text-and-data-mining or AI clause. The ROADMAP §1.1 rules stand | 2026-11-08 |
 
-Items for later Phases (ES `rrf` licence, arm64 reranker, in-process ONNX) are verified in
-their own specs.
+## 11. Resolved questions
 
-## 11. Open questions for the author
+Resolved by the author on 2026-11-08; each takes the suggestion originally proposed.
 
-- **Q1 · Golden set overfitting.** The refusal threshold (Phase 3, 4) is swept on the same
-  golden set it is evaluated on. Split into dev (~70%) / test (~30%) and report test only?
-  With ~40 items the test split is small. *Suggestion: split, and report both.*
-- **Q2 · Faithfulness scope.** The roadmap's metric checks expected points only, so unsupported
-  extra claims go unpunished. Add a claim-level check (judge every cited sentence)?
-  *Suggestion: add it as a second metric in Phase 3.*
-- **Q3 · Adversarial classification.** Should adversarial documents be `public` (reachable by
-  anyone, worst case) or mixed? *Suggestion: `public`, plus one `internal` sample.*
-- **Q4 · `NO_ACCESSIBLE_SOURCES` detection.** It requires an unfiltered count query, which
-  contradicts "restricted documents never enter the pipeline" in spirit. Keep it (count only,
-  audit only), or drop the reason entirely? *Suggestion: keep it, count only, admin-visible.*
-- **Q5 · `corpusVersion` definition.** Accept the extension in §2 that includes Markdown
-  file hashes?
+- **Q1 · Golden set overfitting → split.** Each golden item carries `split: dev | test`
+  (~70 / 30, stratified by `category`). Thresholds are swept on `dev` only; reports show both
+  splits, and `test` is the headline number.
+- **Q2 · Faithfulness scope → add a claim-level metric.** Phase 3 reports, alongside
+  point-level faithfulness, **citation support**: the fraction of cited sentences the judge
+  rates as supported by the chunk they cite.
+- **Q3 · Adversarial classification → `public`, plus one `internal` sample.** Public
+  samples model the worst case (reachable by any caller); the `internal` one checks that
+  injection tests also run correctly behind the filter.
+- **Q4 · `NO_ACCESSIBLE_SOURCES` → keep, count only.** The unfiltered query returns a hit
+  count, never documents or fields, and runs only after a refusal. Its result goes to the
+  audit record and metrics only, and is visible only to the `admin` role.
+- **Q5 · `corpusVersion` → extension accepted** as defined in §2.

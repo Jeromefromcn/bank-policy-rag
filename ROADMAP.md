@@ -320,7 +320,7 @@ report under `evidence/`.
 
 ### Phase 0 · Spec, corpus, golden set — **most important, must not be skipped**
 
-- [ ] Design spec: goals, non-goals, corpus scope, architecture diagram, permission model,
+- [x] Design spec: goals, non-goals, corpus scope, architecture diagram, permission model,
       eval method, success criteria
 - [ ] Verify the current version of each SPM module; write `corpus/manifest.yaml` (no URLs),
       `verify-corpus.sh`, and the README's corpus-acquisition instructions and disclaimers
@@ -633,10 +633,10 @@ The repo can be made public once Phase 0–1 are done, with the README marked "i
 - Eval numbers must come only from actual runner output — no estimating, no embellishing;
   regressions are recorded honestly too.
 - Items to verify are verified at the start of the relevant Phase, with results written into the spec:
-  - [ ] Spring Boot / Spring AI version numbers (Phase 0)
-  - [ ] DeepSeek's current model names (Phase 0)
-  - [ ] Current versions of each SPM module (Phase 0)
-  - [ ] Whether the HKMA terms have changed (Phase 0)
+  - [x] Spring Boot / Spring AI version numbers (Phase 0)
+  - [x] DeepSeek's current model names (Phase 0)
+  - [x] Current versions of each SPM module (Phase 0)
+  - [x] Whether the HKMA terms have changed (Phase 0)
   - [ ] The ES `rrf` retriever's licence requirements (Phase 2)
   - [ ] The arm64 reranker approach (llama.cpp or Python sidecar) and image versions (Phase 4)
   - [ ] Whether in-process ONNX can load `nomic-embed-text` on aarch64 (§8, optional)
