@@ -1,0 +1,44 @@
+# SPM modules used as the public part of the corpus (ROADMAP §1.1).
+# No URLs here by design. See README "Getting the SPM files".
+#
+# `file`   — the name the PDF must have under corpus/raw/ (gitignored).
+# `sha256` — of the original, unmodified PDF. Empty until filled in from the downloaded file:
+#            scripts/verify-corpus.sh --print
+# Versions marked "confirm" are taken from the SPM index date only; confirm them against
+# the PDF cover when downloading (docs/specs/00-overall-design.md §10).
+modules:
+  - docId: spm-tm-g-1
+    code: TM-G-1
+    title: General Principles for Technology Risk Management
+    version: "V.1"
+    revisionDate: 2003-06-24
+    file: TM-G-1.pdf
+    sha256: ""
+  - docId: spm-tm-g-2
+    code: TM-G-2
+    title: Business Continuity Planning
+    version: "V.2"
+    revisionDate: 2022-05-31
+    file: TM-G-2.pdf
+    sha256: ""
+  - docId: spm-or-1
+    code: OR-1
+    title: Operational Risk Management
+    version: ""               # confirm from PDF cover
+    revisionDate: 2022-07-25
+    file: OR-1.pdf
+    sha256: ""
+  - docId: spm-or-2
+    code: OR-2
+    title: Operational Resilience
+    version: "V.1"            # confirm from PDF cover
+    revisionDate: 2022-05-31
+    file: OR-2.pdf
+    sha256: ""
+  - docId: spm-sa-2
+    code: SA-2
+    title: Outsourcing
+    version: ""               # confirm from PDF cover
+    revisionDate: 2001-12-28
+    file: SA-2.pdf
+    sha256: ""

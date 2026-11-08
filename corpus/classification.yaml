@@ -1,0 +1,11 @@
+# Classification rules applied at ingest (ROADMAP §1.3).
+# Levels, lowest first: public < internal < restricted.
+levels: [public, internal, restricted]
+
+# Every SPM module in manifest.yaml is public as a whole.
+regulatory: public
+
+# Markdown documents (corpus/internal/, corpus/adversarial/) take their level from the
+# `classification` field in their front matter. Ingest fails on a missing or unknown value;
+# there is no default.
+markdown: front-matter

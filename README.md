@@ -83,9 +83,12 @@ The corpus has two parts:
 
 1. Visit the Supervisory Policy Manual section of the Hong Kong Monetary Authority's
    official website.
-2. Download the PDF of each module listed in `corpus/manifest.yaml`, at the version listed there.
-3. Place the files in `corpus/raw/` (gitignored).
-4. Run `scripts/verify-corpus.sh` to check their sha256 hashes against the manifest.
+2. Download the PDF of each module listed in `corpus/manifest.yaml`, at the version and
+   revision date listed there.
+3. Save each one in `corpus/raw/` (gitignored) under the `file` name given in the manifest,
+   e.g. `corpus/raw/OR-2.pdf`. Do not modify the files.
+4. Run `scripts/verify-corpus.sh` to check their sha256 hashes against the manifest
+   (`--print` shows the computed hashes).
 
 Use of the SPM is subject to the HKMA website terms of use (non-commercial use, unmodified,
 with attribution). Do not redistribute the PDFs or any text extracted from them.
