@@ -1,5 +1,6 @@
 package rag.app.ask;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -9,6 +10,7 @@ import rag.app.security.Principal;
 import rag.app.web.ApiException;
 
 @RestController
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class AskController {
 
     private final AskService service;

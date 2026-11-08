@@ -3,6 +3,7 @@ package rag.app.ask;
 import com.github.f4b6a3.ulid.UlidCreator;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import rag.app.security.Principal;
  * numbered citation; validation and refusal arrive in Phase 3.
  */
 @Service
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class AskService {
 
     static final String NO_SOURCES = "No sources were found for this question.";
