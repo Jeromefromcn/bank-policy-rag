@@ -12,7 +12,6 @@ rag:
     num-thread: 3
     batch-size: 16
     cache-dir: .cache/embeddings
-    timeout: 30s
   retrieval:
     num-candidates: 100
   chunking:
@@ -28,6 +27,11 @@ spring:
     uris: ${ES_URL:http://127.0.0.1:9200}
     username: ${rag.env-prefix}
     password: ${ES_PASSWORD:}
+  http:
+    clients:
+      # Applies to Ollama and DeepSeek calls: a hung backend fails instead of hanging the request.
+      connect-timeout: 5s
+      read-timeout: 60s
   mvc:
     problemdetails:
       enabled: true

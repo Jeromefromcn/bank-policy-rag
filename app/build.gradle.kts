@@ -28,3 +28,15 @@ tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
 springBoot {
     mainClass.set("rag.app.RagApplication")
 }
+
+tasks.named<Test>("test") {
+    useJUnitPlatform { excludeTags("local") }
+    jvmArgs("-XX:+EnableDynamicAgentLoading")
+}
+
+tasks.register<Test>("localTest") {
+    description = "Tests against the real local Ollama."
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform { includeTags("local") }
+}

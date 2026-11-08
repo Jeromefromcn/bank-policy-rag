@@ -1,6 +1,5 @@
 package rag.app;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -23,7 +22,7 @@ public record RagProperties(
         }
     }
 
-    public record Embedding(String model, int numThread, int batchSize, String cacheDir, Duration timeout) {}
+    public record Embedding(String model, int numThread, int batchSize, String cacheDir) {}
 
     public record Retrieval(int numCandidates) {}
 
