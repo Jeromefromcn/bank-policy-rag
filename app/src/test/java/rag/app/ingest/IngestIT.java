@@ -154,6 +154,25 @@ class IngestIT extends IntegrationTest {
     }
 
     @Test
+    void aSecondModelReusesTheSectionsIndexOfTheSameCorpus() {
+        run("ingest", "--chunker=structural", "--promote");
+        admin.delete(STRUCT_INDEX);   // stands in for "another embedding model gets its own chunks index"
+
+        run("ingest", "--chunker=structural");
+
+        assertThat(admin.exists(STRUCT_INDEX)).isTrue();
+        assertThat(admin.aliasInfo(SECTIONS_ALIAS).orElseThrow().index()).isEqualTo(SECTIONS_INDEX);
+    }
+
+    @Test
+    void sectionsIndexOfAnotherCorpusVersionIsNotReused() {
+        admin.createSections(SECTIONS_INDEX, java.util.Map.of("corpusVersion", "000000000000", "chunkerVersion", "structural-v1-400-cl100k"));
+
+        assertThatThrownBy(() -> run("ingest", "--chunker=structural")).hasMessageContaining(SECTIONS_INDEX).hasMessageContaining("--recreate");
+        assertThat(admin.exists(STRUCT_INDEX)).isFalse();
+    }
+
+    @Test
     void fixedChunkingBuildsNoSectionsIndex() {
         run("ingest", "--promote");
         assertThat(admin.exists(SECTIONS_INDEX)).isFalse();

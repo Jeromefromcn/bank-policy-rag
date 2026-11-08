@@ -87,17 +87,19 @@ public class IngestCommand implements ApplicationRunner {
         String index = IndexNames.chunksIndex(props.envPrefix(), embedder.shortName(), embedder.dims(), chunker.version(), INDEX_VERSION);
         String sectionsIndex = structural ? IndexNames.sectionsIndex(props.envPrefix(), chunker.version(), INDEX_VERSION) : null;
         boolean indexing = !step.equals("embed");
-        if (indexing && !recreate) {
-            for (String name : structural ? List.of(index, sectionsIndex) : List.of(index)) {
-                if (admin.exists(name)) {
-                    throw new IllegalStateException("index " + name + " already exists; pass --recreate to rebuild it");
-                }
-            }
+        if (indexing && !recreate && admin.exists(index)) {
+            throw new IllegalStateException("index " + index + " already exists; pass --recreate to rebuild it");
         }
 
         long t0 = System.nanoTime();
         List<ParsedDocument> docs = new CorpusLoader(root).load();
         String corpusVersion = CorpusVersion.compute(root);
+        // Sections do not depend on the embedding model, so another model's ingest reuses them; fail early
+        // (before any embedding work) if they were built from a different corpus.
+        boolean reuseSections = structural && indexing && !recreate && admin.exists(sectionsIndex);
+        if (reuseSections && !corpusVersion.equals(admin.aliasInfo(sectionsIndex).orElseThrow().meta().get("corpusVersion"))) {
+            throw new IllegalStateException("index " + sectionsIndex + " was built from another corpus version; pass --recreate to rebuild it");
+        }
         List<Item> items = new ArrayList<>();
         for (ParsedDocument d : docs) {
             chunker.chunk(d).forEach(c -> items.add(new Item(d, c)));
@@ -116,7 +118,7 @@ public class IngestCommand implements ApplicationRunner {
         if (indexing) {
             index(items, index, corpusVersion, chunker.version(), recreate, promote);
             if (structural) {
-                indexSections(docs, sectionsIndex, corpusVersion, chunker.version(), recreate, promote);
+                indexSections(docs, sectionsIndex, corpusVersion, chunker.version(), recreate, promote, reuseSections);
             }
         }
     }
@@ -172,7 +174,14 @@ public class IngestCommand implements ApplicationRunner {
     }
 
     private void indexSections(List<ParsedDocument> docs, String index, String corpusVersion, String chunkerVersion,
-            boolean recreate, boolean promote) {
+            boolean recreate, boolean promote, boolean reuse) {
+        if (reuse) {
+            if (promote) {
+                admin.pointAlias(IndexNames.sectionsAlias(props.envPrefix()), index);
+            }
+            log.info("index step: reusing sections index {}", index);
+            return;
+        }
         long t0 = System.nanoTime();
         List<SectionDocument> sections = new ArrayList<>();
         for (ParsedDocument d : docs) {
