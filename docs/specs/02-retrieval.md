@@ -59,6 +59,9 @@ parsing. A **unit** is the text from one marker to the next marker (or end of do
 - **Markdown**: a unit per numbered heading (`## 2 …`), since Markdown markers are headings only.
 - Text before the first marker (front matter, `Structure` list) forms no chunk and is **not
   indexed**. Phase 1 indexed it under an empty path; dropping it is a deliberate change.
+- A document with **no markers at all** is the exception: dropping its text would drop the whole
+  document, so it is chunked whole (merge/split rules below) under an empty `sectionPath`, with
+  one parent whose path is empty.
 
 ### 3.2 Merge and split
 
@@ -143,6 +146,11 @@ with these set, so the **API contract does not grow an index parameter**. Ingest
 it). Ingest moves no alias unless `--promote` is passed; this changes Phase 1, where every ingest
 moved the alias.
 
+The sections index does not depend on the embedding model, so a second model's ingest **reuses**
+it when its `_meta.corpusVersion` equals the current one and fails (before any embedding work,
+asking for `--recreate`) when it differs. `/actuator/info` describes the configured chunks index
+(the alias, or the physical index named by `chunks-index`), so reports record what was measured.
+
 `/actuator/info` already reports `chunkerVersion` and `embeddingModel` from the live index
 `_meta`; the runner records them, so every report states which index it measured.
 
@@ -198,3 +206,8 @@ Per-item rows show ids and ranks, never chunk text.
 9. Parent expansion in `/v1/ask` deferred to Phase 3; Phase 2 does not measure it (§3.3).
 10. Experiments select an index by property + `--promote`, not by an API parameter (§6).
 11. The Phase 1 baseline row is re-run, not copied (§7).
+12. A document without markers is chunked whole instead of dropped (§3.1).
+13. The sections index is reused across embedding models of the same corpus version (§6).
+14. `/actuator/info` reports the configured physical index when `chunks-index` is set (§6).
+15. Ingest defaults to the `fixed` chunker (`rag.chunking.kind`), so Phase 1 behaviour is unchanged unless asked.
+16. The embedding model is chosen per process (`RAG_EMBEDDING_MODEL`), not by an ingest flag (§6).
