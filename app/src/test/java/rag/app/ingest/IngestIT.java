@@ -29,6 +29,9 @@ class IngestIT extends IntegrationTest {
     static final String PREFIX = "t_ingest";
     static final String ALIAS = PREFIX + "-chunks";
     static final String INDEX = PREFIX + "-chunks-fake8-fixed512-v1";
+    static final String STRUCT_INDEX = PREFIX + "-chunks-fake8-struct400-v1";
+    static final String SECTIONS_ALIAS = PREFIX + "-sections";
+    static final String SECTIONS_INDEX = PREFIX + "-sections-struct400-v1";
     static final Path WORK = tempDir();
     static final Path CORPUS = createCorpus();
 
@@ -45,8 +48,10 @@ class IngestIT extends IntegrationTest {
 
     @BeforeEach
     void clean() throws IOException {
-        if (admin.exists(INDEX)) {
-            admin.delete(INDEX);
+        for (String index : new String[] {INDEX, STRUCT_INDEX, SECTIONS_INDEX}) {
+            if (admin.exists(index)) {
+                admin.delete(index);
+            }
         }
         Path cache = WORK.resolve("cache");
         if (Files.exists(cache)) {
@@ -62,7 +67,7 @@ class IngestIT extends IntegrationTest {
 
     @Test
     void ingestCreatesIndexAliasAndMeta() throws IOException {
-        run("ingest");
+        run("ingest", "--promote");
         var info = admin.aliasInfo(ALIAS).orElseThrow();
         assertThat(info.index()).isEqualTo(INDEX);
         assertThat(info.meta()).containsEntry("chunkerVersion", "fixed-512-64-cl100k")
@@ -78,9 +83,9 @@ class IngestIT extends IntegrationTest {
 
     @Test
     void reingestIsDeterministic() throws IOException {
-        run("ingest");
+        run("ingest", "--promote");
         var first = chunkIdsAndHashes();
-        run("ingest", "--recreate");
+        run("ingest", "--recreate", "--promote");
         assertThat(chunkIdsAndHashes()).isEqualTo(first).isNotEmpty();
     }
 
@@ -106,10 +111,66 @@ class IngestIT extends IntegrationTest {
 
     @Test
     void indexedChunkCarriesClassificationAndSections() throws IOException {
-        run("ingest");
+        run("ingest", "--promote");
         String hits = EsAdminHttp.get("/" + ALIAS + "/_search?q=docId:eb-a&_source_excludes=embedding");
         assertThat(hits).contains("\"classification\":\"internal\"").contains("\"coveredSections\":[\"1\"]")
                 .contains("\"sourceType\":\"internal\"");
+    }
+
+    @Test
+    void withoutPromoteTheAliasStaysWhereItWas() {
+        run("ingest", "--promote");
+        run("ingest", "--chunker=structural");
+
+        assertThat(admin.exists(STRUCT_INDEX)).isTrue();
+        assertThat(admin.aliasInfo(ALIAS).orElseThrow().index()).isEqualTo(INDEX);
+        assertThat(admin.aliasInfo(SECTIONS_ALIAS)).isEmpty();
+    }
+
+    @Test
+    void promoteMovesBothAliasesForStructuralChunking() {
+        run("ingest", "--promote");
+        run("ingest", "--chunker=structural", "--promote");
+
+        assertThat(admin.aliasInfo(ALIAS).orElseThrow().index()).isEqualTo(STRUCT_INDEX);
+        var sections = admin.aliasInfo(SECTIONS_ALIAS).orElseThrow();
+        assertThat(sections.index()).isEqualTo(SECTIONS_INDEX);
+        assertThat(sections.meta()).containsEntry("chunkerVersion", "structural-v1-400-cl100k").containsKey("corpusVersion");
+        assertThat(admin.aliasInfo(ALIAS).orElseThrow().meta()).containsEntry("chunkerVersion", "structural-v1-400-cl100k");
+    }
+
+    @Test
+    void everyStructuralChunkPointsAtAnIndexedParent() throws IOException {
+        run("ingest", "--chunker=structural", "--promote");
+        client.indices().refresh(r -> r.index(ALIAS, SECTIONS_ALIAS));
+
+        var chunks = client.search(s -> s.index(ALIAS).size(1000).source(src -> src.filter(f -> f.includes("sectionId"))), java.util.Map.class);
+        var sections = client.search(s -> s.index(SECTIONS_ALIAS).size(1000).source(src -> src.filter(f -> f.includes("sectionId"))), java.util.Map.class);
+
+        Set<Object> parentIds = new TreeSet<>();
+        sections.hits().hits().forEach(h -> parentIds.add(h.source().get("sectionId")));
+        assertThat(chunks.hits().hits()).isNotEmpty().allSatisfy(h -> assertThat(parentIds).contains(h.source().get("sectionId")));
+        assertThat(parentIds).isNotEmpty();
+    }
+
+    @Test
+    void fixedChunkingBuildsNoSectionsIndex() {
+        run("ingest", "--promote");
+        assertThat(admin.exists(SECTIONS_INDEX)).isFalse();
+        assertThat(admin.aliasInfo(SECTIONS_ALIAS)).isEmpty();
+    }
+
+    @Test
+    void secondRunWithADifferentChunkerReusesTheEmbeddingCache() {
+        run("ingest", "--step=embed");
+        run("ingest", "--step=embed", "--chunker=structural");
+        run("ingest", "--step=index", "--chunker=structural");
+        assertThat(admin.exists(STRUCT_INDEX)).isTrue();
+    }
+
+    @Test
+    void unknownChunkerFailsNamingTheAllowedValues() {
+        assertThatThrownBy(() -> run("ingest", "--chunker=semantic")).hasMessageContaining("fixed").hasMessageContaining("structural");
     }
 
     private Set<String> chunkIdsAndHashes() throws IOException {

@@ -17,8 +17,13 @@ import rag.app.embed.EmbeddingCache;
 import rag.app.es.ChunkDocument;
 import rag.app.es.ChunkIndexAdmin;
 import rag.app.es.ChunkWriter;
+import rag.app.es.SectionDocument;
+import rag.app.es.SectionWriter;
 import rag.app.es.IndexNames;
 import rag.core.chunk.Chunk;
+import rag.core.chunk.Chunker;
+import rag.core.chunk.SectionParents;
+import rag.core.chunk.StructuralChunker;
 import rag.core.chunk.FixedChunker;
 import rag.core.chunk.TokenCounter;
 import rag.core.corpus.CorpusLoader;
@@ -26,9 +31,11 @@ import rag.core.corpus.CorpusVersion;
 import rag.core.model.ParsedDocument;
 
 /**
- * {@code ingest [--step=all|embed|index] [--recreate]} (spec 01 §3). The embed step only fills the
+ * {@code ingest [--step=all|embed|index] [--chunker=fixed|structural] [--recreate] [--promote]} (specs 01 §3, 02 §6). The embed step only fills the
  * embedding cache; the index step reads only from it, so Ollama inference and HNSW building never
- * compete for CPU (ROADMAP §7.1).
+ * compete for CPU (ROADMAP §7.1). The embedding model is the process's configured one
+ * ({@code RAG_EMBEDDING_MODEL}). The aliases move only with {@code --promote}, so experiments never
+ * change what the running service reads.
  */
 @Component
 public class IngestCommand implements ApplicationRunner {
@@ -44,13 +51,16 @@ public class IngestCommand implements ApplicationRunner {
     private final EmbeddingCache cache;
     private final ChunkIndexAdmin admin;
     private final ChunkWriter writer;
+    private final SectionWriter sectionWriter;
 
-    public IngestCommand(RagProperties props, Embedder embedder, EmbeddingCache cache, ChunkIndexAdmin admin, ChunkWriter writer) {
+    public IngestCommand(RagProperties props, Embedder embedder, EmbeddingCache cache, ChunkIndexAdmin admin, ChunkWriter writer,
+            SectionWriter sectionWriter) {
         this.props = props;
         this.embedder = embedder;
         this.cache = cache;
         this.admin = admin;
         this.writer = writer;
+        this.sectionWriter = sectionWriter;
     }
 
     @Override
@@ -63,13 +73,26 @@ public class IngestCommand implements ApplicationRunner {
             throw new IllegalArgumentException("--step must be all, embed or index, got " + step);
         }
         boolean recreate = args.containsOption("recreate");
+        boolean promote = args.containsOption("promote");
+        String kind = args.containsOption("chunker") ? args.getOptionValues("chunker").getFirst() : props.chunking().kind();
+        boolean structural = kind.equals("structural");
+        if (!structural && !kind.equals("fixed")) {
+            throw new IllegalArgumentException("--chunker must be fixed or structural, got " + kind);
+        }
 
         Path root = Path.of(props.corpus().root());
-        var chunker = new FixedChunker(TokenCounter.cl100k(), props.chunking().maxTokens(), props.chunking().overlapTokens());
+        Chunker chunker = structural
+                ? new StructuralChunker(TokenCounter.cl100k(), props.chunking().structural().maxTokens(), props.chunking().structural().minTokens())
+                : new FixedChunker(TokenCounter.cl100k(), props.chunking().maxTokens(), props.chunking().overlapTokens());
         String index = IndexNames.chunksIndex(props.envPrefix(), embedder.shortName(), embedder.dims(), chunker.version(), INDEX_VERSION);
+        String sectionsIndex = structural ? IndexNames.sectionsIndex(props.envPrefix(), chunker.version(), INDEX_VERSION) : null;
         boolean indexing = !step.equals("embed");
-        if (indexing && admin.exists(index) && !recreate) {
-            throw new IllegalStateException("index " + index + " already exists; pass --recreate to rebuild it");
+        if (indexing && !recreate) {
+            for (String name : structural ? List.of(index, sectionsIndex) : List.of(index)) {
+                if (admin.exists(name)) {
+                    throw new IllegalStateException("index " + name + " already exists; pass --recreate to rebuild it");
+                }
+            }
         }
 
         long t0 = System.nanoTime();
@@ -80,14 +103,21 @@ public class IngestCommand implements ApplicationRunner {
             chunker.chunk(d).forEach(c -> items.add(new Item(d, c)));
         }
         long tokens = items.stream().mapToLong(i -> i.chunk().tokenCount()).sum();
-        log.info("ingest: {} documents, {} chunks, {} tokens, corpusVersion {}, parse+chunk {} ms",
-                docs.size(), items.size(), tokens, corpusVersion, ms(t0));
+        int[] sizes = items.stream().mapToInt(i -> i.chunk().tokenCount()).sorted().toArray();
+        log.info("ingest: chunker {}, {} documents, {} chunks, {} tokens, corpusVersion {}, parse+chunk {} ms",
+                chunker.version(), docs.size(), items.size(), tokens, corpusVersion, ms(t0));
+        if (sizes.length > 0) {
+            log.info("ingest: chunk tokens min {} / median {} / max {}", sizes[0], sizes[sizes.length / 2], sizes[sizes.length - 1]);
+        }
 
         if (!step.equals("index")) {
             embed(items);
         }
         if (indexing) {
-            index(items, index, corpusVersion, chunker.version(), recreate);
+            index(items, index, corpusVersion, chunker.version(), recreate, promote);
+            if (structural) {
+                indexSections(docs, sectionsIndex, corpusVersion, chunker.version(), recreate, promote);
+            }
         }
     }
 
@@ -112,7 +142,8 @@ public class IngestCommand implements ApplicationRunner {
         log.info("embed step: {} ms", ms(t0));
     }
 
-    private void index(List<Item> items, String index, String corpusVersion, String chunkerVersion, boolean recreate) {
+    private void index(List<Item> items, String index, String corpusVersion, String chunkerVersion, boolean recreate,
+            boolean promote) {
         long t0 = System.nanoTime();
         Instant now = Instant.now();
         List<ChunkDocument> docs = new ArrayList<>(items.size());
@@ -134,8 +165,28 @@ public class IngestCommand implements ApplicationRunner {
         admin.create(index, embedder.dims(), Map.of(
                 "corpusVersion", corpusVersion, "chunkerVersion", chunkerVersion, "embeddingModel", embedder.modelId()));
         writer.bulkIndex(index, docs);
-        admin.pointAlias(IndexNames.chunksAlias(props.envPrefix()), index);
-        log.info("index step: {} chunks into {} ({} ms)", docs.size(), index, ms(t0));
+        if (promote) {
+            admin.pointAlias(IndexNames.chunksAlias(props.envPrefix()), index);
+        }
+        log.info("index step: {} chunks into {}{} ({} ms)", docs.size(), index, promote ? " (promoted)" : "", ms(t0));
+    }
+
+    private void indexSections(List<ParsedDocument> docs, String index, String corpusVersion, String chunkerVersion,
+            boolean recreate, boolean promote) {
+        long t0 = System.nanoTime();
+        List<SectionDocument> sections = new ArrayList<>();
+        for (ParsedDocument d : docs) {
+            SectionParents.of(d).forEach(p -> sections.add(SectionDocument.of(p, d, corpusVersion)));
+        }
+        if (recreate && admin.exists(index)) {
+            admin.delete(index);
+        }
+        admin.createSections(index, Map.of("corpusVersion", corpusVersion, "chunkerVersion", chunkerVersion));
+        sectionWriter.bulkIndex(index, sections);
+        if (promote) {
+            admin.pointAlias(IndexNames.sectionsAlias(props.envPrefix()), index);
+        }
+        log.info("index step: {} sections into {}{} ({} ms)", sections.size(), index, promote ? " (promoted)" : "", ms(t0));
     }
 
     private static long ms(long t0) {

@@ -138,8 +138,10 @@ points at whichever index the author promotes; see §6 for how experiments avoid
 New property `rag.retrieval.chunks-index` (env `RAG_CHUNKS_INDEX`), default the alias.
 `rag.retrieval.sections-index` likewise. The ablation script starts the app once per index
 with these set, so the **API contract does not grow an index parameter**. Ingest gets
-`--chunker=fixed|structural` and `--model=<name>` to build each physical index; neither moves the
-alias unless `--promote` is passed.
+`--chunker=fixed|structural` to build each physical index; the embedding model is the process's
+`RAG_EMBEDDING_MODEL` (the embedder is one injected bean, so a `--model` flag would only duplicate
+it). Ingest moves no alias unless `--promote` is passed; this changes Phase 1, where every ingest
+moved the alias.
 
 `/actuator/info` already reports `chunkerVersion` and `embeddingModel` from the live index
 `_meta`; the runner records them, so every report states which index it measured.
