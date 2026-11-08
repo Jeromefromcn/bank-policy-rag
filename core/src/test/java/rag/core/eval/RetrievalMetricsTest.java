@@ -74,6 +74,15 @@ class RetrievalMetricsTest {
     }
 
     @Test
+    void oneHitMatchingTwoSourcesKeepsNdcgAtMostOne() {
+        var both = new RankedHit("a", List.of("1"), List.of("1", "2"));
+        var s = RetrievalMetrics.score(List.of(new ExpectedSource("a", "1"), new ExpectedSource("a", "2")), ranked(both));
+        assertThat(s.recall5()).isEqualTo(1.0);
+        // Binary gain per rank: one relevant rank against an ideal of two.
+        assertThat(s.ndcg10()).isCloseTo(1 / (1 / log2(2) + 1 / log2(3)), offset(1e-9)).isLessThanOrEqualTo(1.0);
+    }
+
+    @Test
     void emptyExpectedIsRejected() {
         assertThatThrownBy(() -> RetrievalMetrics.score(List.of(), ranked())).isInstanceOf(IllegalArgumentException.class);
     }

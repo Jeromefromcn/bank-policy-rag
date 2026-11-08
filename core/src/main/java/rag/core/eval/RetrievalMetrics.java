@@ -1,10 +1,13 @@
 package rag.core.eval;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Retrieval metrics per spec 00 §6.3. Each expected source counts once, at its highest-ranked
- * match. MRR and nDCG look at the top 10; nDCG uses binary gain per newly matched expected source.
+ * match. MRR and nDCG look at the top 10; nDCG gives binary gain to each rank that newly matches at
+ * least one expected source.
  */
 public final class RetrievalMetrics {
 
@@ -21,16 +24,26 @@ public final class RetrievalMetrics {
         int found10 = 0;
         double dcg = 0;
         Integer first = null;
-        for (ExpectedSource e : expected) {
-            for (int r = 1; r <= depth; r++) {
-                if (SourceMatcher.matches(e, ranked.get(r - 1))) {
+        Set<ExpectedSource> matched = new HashSet<>();
+        for (int r = 1; r <= depth; r++) {
+            RankedHit hit = ranked.get(r - 1);
+            boolean newMatch = false;
+            for (ExpectedSource e : expected) {
+                if (!matched.contains(e) && SourceMatcher.matches(e, hit)) {
+                    matched.add(e);
+                    newMatch = true;
+                    found10++;
                     if (r <= 5) {
                         found5++;
                     }
-                    found10++;
-                    dcg += 1 / log2(r + 1);
-                    first = first == null ? r : Math.min(first, r);
-                    break;
+                }
+            }
+            if (newMatch) {
+                // Binary gain per rank: a chunk covering several expected sources still earns 1,
+                // so nDCG stays within [0, 1] against the ideal below.
+                dcg += 1 / log2(r + 1);
+                if (first == null) {
+                    first = r;
                 }
             }
         }
