@@ -49,6 +49,26 @@ public class ChunkIndexAdmin {
         }
     }
 
+    /** Creates the {@code sections} index: strict mapping, no vector field. */
+    public void createSections(String index, Map<String, String> meta) {
+        Map<String, Object> kw = Map.of("type", "keyword");
+        Map<String, Object> props = new LinkedHashMap<>();
+        for (String f : List.of("sectionId", "docId", "docVersion", "sourceType", "sectionPath", "classification", "corpusVersion")) {
+            props.put(f, kw);
+        }
+        props.put("docTitle", Map.of("type", "text", "fields", Map.of("keyword", kw)));
+        props.put("pages", Map.of("type", "integer"));
+        props.put("content", Map.of("type", "text", "analyzer", "english"));
+        String body = json.writeValueAsString(Map.of(
+                "settings", Map.of("number_of_replicas", 0),
+                "mappings", Map.of("dynamic", "strict", "_meta", meta, "properties", props)));
+        try {
+            client.indices().create(CreateIndexRequest.of(b -> b.index(index).withJson(new StringReader(body))));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     public void delete(String index) {
         try {
             client.indices().delete(d -> d.index(index));
