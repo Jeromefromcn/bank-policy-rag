@@ -11,7 +11,7 @@ class SearchClientTest {
     @Test
     void sendsKeyModeAndTopK() throws Exception {
         try (var stub = new StubServer()) {
-            new SearchClient(stub.base(), "k-123").search("What is X?", 10);
+            new SearchClient(stub.base(), "k-123", "VECTOR").search("What is X?", 10);
             var req = stub.requests.getFirst();
             assertThat(req.apiKey()).isEqualTo("k-123");
             var body = JsonMapper.builder().build().readTree(req.body());
@@ -24,7 +24,7 @@ class SearchClientTest {
     @Test
     void mapsHitsToRankedHits() throws Exception {
         try (var stub = new StubServer()) {
-            var result = new SearchClient(stub.base(), "k").search("q", 10);
+            var result = new SearchClient(stub.base(), "k", "HYBRID").search("q", 10);
             assertThat(result.hits()).hasSize(2);
             assertThat(result.hits().getFirst().docId()).isEqualTo("eb-a");
             assertThat(result.hits().getFirst().sectionPath()).containsExactly("1");
@@ -38,7 +38,7 @@ class SearchClientTest {
         try (var stub = new StubServer()) {
             stub.searchStatus = 401;
             stub.searchBody = "{\"type\":\"urn:rag:problem:unauthorized\",\"status\":401}";
-            assertThatThrownBy(() -> new SearchClient(stub.base(), "k").search("q", 10))
+            assertThatThrownBy(() -> new SearchClient(stub.base(), "k", "HYBRID").search("q", 10))
                     .hasMessageContaining("401").hasMessageContaining("urn:rag:problem:unauthorized");
         }
     }
@@ -46,7 +46,15 @@ class SearchClientTest {
     @Test
     void readsInfo() throws Exception {
         try (var stub = new StubServer()) {
-            assertThat(new SearchClient(stub.base(), "k").info()).containsEntry("chunkerVersion", "fixed-512-64-cl100k");
+            assertThat(new SearchClient(stub.base(), "k", "HYBRID").info()).containsEntry("chunkerVersion", "fixed-512-64-cl100k");
+        }
+    }
+
+    @Test
+    void sendsTheConfiguredMode() throws Exception {
+        try (var stub = new StubServer()) {
+            new SearchClient(stub.base(), "k", "BM25").search("q", 10);
+            assertThat(JsonMapper.builder().build().readTree(stub.requests.getFirst().body()).get("mode").asString()).isEqualTo("BM25");
         }
     }
 }

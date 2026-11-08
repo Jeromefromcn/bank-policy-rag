@@ -23,15 +23,17 @@ public class SearchClient {
 
     private final URI base;
     private final String apiKey;
+    private final String mode;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
-    public SearchClient(URI base, String apiKey) {
+    public SearchClient(URI base, String apiKey, String mode) {
         this.base = base;
         this.apiKey = apiKey;
+        this.mode = mode;
     }
 
     public SearchResult search(String query, int topK) {
-        String body = JSON.writeValueAsString(Map.of("query", query, "topK", topK, "mode", "VECTOR"));
+        String body = JSON.writeValueAsString(Map.of("query", query, "topK", topK, "mode", mode));
         long t0 = System.nanoTime();
         JsonNode res = send(HttpRequest.newBuilder(base.resolve("/v1/search"))
                 .header("Content-Type", "application/json")

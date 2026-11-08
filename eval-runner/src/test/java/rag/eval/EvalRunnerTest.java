@@ -94,4 +94,36 @@ class EvalRunnerTest {
     void missingBaseUrlExits2() {
         assertThat(EvalRunner.run(new String[] {}, Map.of("RAG_KEY_DEV", "k"), new PrintStream(new ByteArrayOutputStream()))).isEqualTo(2);
     }
+
+    @Test
+    void modeDefaultsToHybridAndIsRecorded() throws Exception {
+        try (var stub = new StubServer()) {
+            assertThat(run(stub, Map.of("RAG_KEY_DEV", "k"))).isZero();
+            assertThat(stub.requests.stream().filter(r -> r.path().equals("/v1/search")).map(StubServer.Request::body))
+                    .allSatisfy(b -> assertThat(b).contains("\"mode\":\"HYBRID\""));
+            Path runDir;
+            try (var s = Files.list(tmp.resolve("runs"))) {
+                runDir = s.findFirst().orElseThrow();
+            }
+            assertThat(Files.readString(runDir.resolve("report.md"))).contains("| mode | HYBRID |");
+            assertThat(Files.readString(runDir.resolve("report.json"))).containsPattern("\"mode\"\\s*:\\s*\"HYBRID\"");
+        }
+    }
+
+    @Test
+    void explicitModeIsSent() throws Exception {
+        try (var stub = new StubServer()) {
+            assertThat(run(stub, Map.of("RAG_KEY_DEV", "k"), "--mode=BM25")).isZero();
+            assertThat(stub.requests.stream().filter(r -> r.path().equals("/v1/search")).map(StubServer.Request::body))
+                    .isNotEmpty().allSatisfy(b -> assertThat(b).contains("\"mode\":\"BM25\""));
+        }
+    }
+
+    @Test
+    void invalidModeExits2BeforeAnyRequest() throws Exception {
+        try (var stub = new StubServer()) {
+            assertThat(run(stub, Map.of("RAG_KEY_DEV", "k"), "--mode=FUZZY")).isEqualTo(2);
+            assertThat(stub.requests).isEmpty();
+        }
+    }
 }

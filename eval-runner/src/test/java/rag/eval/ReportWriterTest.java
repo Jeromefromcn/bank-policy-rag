@@ -25,7 +25,7 @@ class ReportWriterTest {
 
     static RunMetadata meta() {
         return new RunMetadata("2026-11-08T00:00:00Z", "abc1234", false, "aarch64", 4, "http://x",
-                Map.of("chunkerVersion", "fixed-512-64-cl100k"), "all", 1);
+                Map.of("chunkerVersion", "fixed-512-64-cl100k"), "all", "HYBRID", 1);
     }
 
     @Test
@@ -36,7 +36,7 @@ class ReportWriterTest {
         new ReportWriter().write(dir, meta(), items);
         String md = Files.readString(dir.resolve("report.md"));
         assertThat(md).contains("| all |").contains("| exact-term |").contains("| factual |")
-                .contains("fixed-512-64-cl100k").contains("abc1234")
+                .contains("fixed-512-64-cl100k").contains("abc1234").contains("| mode | HYBRID |")
                 .doesNotContain("Secret question text");
         assertThat(md.indexOf("### test")).isPositive().isLessThan(md.indexOf("### dev"));
         assertThat(md).contains("| g2 | exact-term | dev | 8 | 0.000 |");
