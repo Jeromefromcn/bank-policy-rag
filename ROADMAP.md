@@ -17,7 +17,7 @@ How to track progress:
 - Tick a Phase below only when its exit criterion is met and the evidence is committed.
 - Tick a verification item in §10 when its result is written into the relevant spec.
 
-- [ ] **Phase 0** · Spec, corpus, golden set — spec, manifest, internal docs, golden set committed
+- [x] **Phase 0** · Spec, corpus, golden set — spec, manifest, internal docs, golden set committed
 - [ ] **Phase 1** · Naive baseline — `evidence/phase1-baseline.md`
 - [ ] **Phase 2** · Structural chunking + hybrid + embedding ablation — `evidence/phase2-*.md` (two comparison tables)
 - [ ] **Phase 3** · Citations, refusals, generation-side eval — `evidence/phase3-*.md`
@@ -344,7 +344,7 @@ report under `evidence/`.
   `multi-hop` ≥ 5 (spanning SPM and internal documents).
   **Every item's answer and sources must be checked by a human**: AI may draft candidate
   questions, but they must not go straight into the set.
-- [ ] `decisions/01-corpus-and-stack.md`: written by the author personally
+- [x] `decisions/01-corpus-and-stack.md`: written by the author personally
 
 **Exit**: spec, corpus manifest, internal documents and golden set are all committed, and
 before any business code.
