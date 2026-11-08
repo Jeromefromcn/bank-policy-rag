@@ -18,7 +18,7 @@ How to track progress:
 - Tick a verification item in §10 when its result is written into the relevant spec.
 
 - [x] **Phase 0** · Spec, corpus, golden set — spec, manifest, internal docs, golden set committed
-- [ ] **Phase 1** · Naive baseline — `evidence/phase1-baseline.md`
+- [x] **Phase 1** · Naive baseline — `evidence/phase1-baseline.md`
 - [ ] **Phase 2** · Structural chunking + hybrid + embedding ablation — `evidence/phase2-*.md` (two comparison tables)
 - [ ] **Phase 3** · Citations, refusals, generation-side eval — `evidence/phase3-*.md`
 - [ ] **Phase 4** · Rerank and query rewriting (optional) — `evidence/phase4-*.md`

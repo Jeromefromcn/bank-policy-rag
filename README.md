@@ -93,7 +93,7 @@ The corpus has two parts:
 Use of the SPM is subject to the HKMA website terms of use (non-commercial use, unmodified,
 with attribution). Do not redistribute the PDFs or any text extracted from them.
 
-## Local setup (planned)
+## Local setup
 
 Prerequisites:
 - Linux arm64 or x86_64, Docker with Compose v2, JDK 25
@@ -107,18 +107,25 @@ Prerequisites:
 Steps:
 
 ```sh
-cp .env.example .env            # fill in ES_PASSWORD, DEEPSEEK_API_KEY, RAG_KEY_*
-docker compose up -d            # Elasticsearch + Ollama
+cp .env.example .env            # fill in ES_PASSWORD, DEEPSEEK_API_KEY, RAG_KEY_DEV
+docker compose up -d            # Elasticsearch + Ollama (skip if you already run both)
 docker compose exec ollama ollama pull nomic-embed-text
-./gradlew :app:bootRun --args="ingest"
-./gradlew :app:bootRun
+set -a; . ./.env; set +a
+./gradlew :app:bootRun --args="ingest --step=embed"   # embeddings into .cache/ (gitignored)
+./gradlew :app:bootRun --args="ingest --step=index"   # bulk-write the chunks index
+./gradlew :app:bootRun                                # REST API on :8080
+./gradlew :eval-runner:run --args="--base-url=http://127.0.0.1:8080"
 ```
+
+`ingest` without `--step` runs both steps; add `--recreate` to rebuild an existing index.
+`compose.yaml` matches the author's shared Elasticsearch and Ollama stacks (same images and
+limits); with your own Elasticsearch, point `ES_URL` at it.
 
 ## Evaluation results
 
 | Phase | Configuration | Recall@5 | MRR | nDCG@10 | Notes |
 |---|---|---|---|---|---|
-| — | — | — | — | — | No results yet |
+| 1 | VECTOR, fixed 512/64 chunks, `nomic-embed-text` | 0.850 | 0.833 | 0.792 | `test` split, n = 10; [report](evidence/phase1-baseline.md) |
 
 Numbers come only from eval runner output; reports live in `evidence/`.
 
