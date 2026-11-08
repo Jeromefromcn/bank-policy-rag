@@ -19,7 +19,7 @@ How to track progress:
 
 - [x] **Phase 0** · Spec, corpus, golden set — spec, manifest, internal docs, golden set committed
 - [x] **Phase 1** · Naive baseline — `evidence/phase1-baseline.md`
-- [ ] **Phase 2** · Structural chunking + hybrid + embedding ablation — `evidence/phase2-*.md` (two comparison tables)
+- [x] **Phase 2** · Structural chunking + hybrid + embedding ablation — `evidence/phase2-*.md` (two comparison tables)
 - [ ] **Phase 3** · Citations, refusals, generation-side eval — `evidence/phase3-*.md`
 - [ ] **Phase 4** · Rerank and query rewriting (optional) — `evidence/phase4-*.md`
 - [ ] **Phase 5** · Permissions, audit, observability, CI gate — green CI gate + permission and injection test records
@@ -372,9 +372,9 @@ good**; every later improvement is measured relative to it.
   - Markdown: by heading
   - Parent–child: retrieve small chunks, return the full section
 - [x] BM25 leg + application-layer RRF fusion (k = 60); the `mode` parameter supports all three modes
-- [ ] Retrieval ablation: `VECTOR` / `BM25` / `HYBRID` × two chunking strategies, six runs
+- [x] Retrieval ablation: `VECTOR` / `BM25` / `HYBRID` × two chunking strategies, six runs
       in total, broken down by `category`
-- [ ] Embedding ablation: the three models from §2, fixed on `HYBRID` with structural chunking
+- [x] Embedding ablation: the three models from §2, fixed on `HYBRID` with structural chunking
 
 **Exit**: two comparison tables. Hybrid retrieval is expected to clearly win on the
 `exact-term` subset (paragraph numbers, module codes); how large is the gap between small
