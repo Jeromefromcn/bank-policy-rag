@@ -17,7 +17,7 @@ import rag.core.model.SectionPath;
  * next word would exceed {@code maxTokens}; the next window starts at the latest word that keeps at
  * least {@code overlapTokens} of overlap. A single word longer than the limit becomes its own chunk.
  */
-public final class FixedChunker {
+public final class FixedChunker implements Chunker {
 
     private static final Pattern WORD = Pattern.compile("\\S+");
 
@@ -34,10 +34,12 @@ public final class FixedChunker {
         this.overlapTokens = overlapTokens;
     }
 
+    @Override
     public String version() {
         return "fixed-" + maxTokens + "-" + overlapTokens + "-cl100k";
     }
 
+    @Override
     public List<Chunk> chunk(ParsedDocument doc) {
         String text = doc.text();
         List<int[]> words = new ArrayList<>();

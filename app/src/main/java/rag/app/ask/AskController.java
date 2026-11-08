@@ -27,7 +27,7 @@ public class AskController {
         if (request.conversationId() != null) {
             throw ApiException.invalid("conversationId is not supported yet");
         }
-        int topK = SearchRequest.validateRetrievalOptions(request.topK(), request.mode(), request.rerank());
-        return service.ask(request.question(), topK, principal);
+        var options = SearchRequest.validateRetrievalOptions(request.topK(), request.mode(), request.rerank());
+        return service.ask(request.question(), options.topK(), options.mode(), principal);
     }
 }

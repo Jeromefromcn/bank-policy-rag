@@ -117,7 +117,7 @@ set -a; . ./.env; set +a
 ./gradlew :eval-runner:run --args="--base-url=http://127.0.0.1:8080"
 ```
 
-`ingest` without `--step` runs both steps; add `--recreate` to rebuild an existing index.
+`ingest` without `--step` runs both steps; add `--recreate` to rebuild an existing index. Aliases move only with `--promote`; `--chunker=structural` also builds the sections index.
 `compose.yaml` matches the author's shared Elasticsearch and Ollama stacks (same images and
 limits); with your own Elasticsearch, point `ES_URL` at it.
 

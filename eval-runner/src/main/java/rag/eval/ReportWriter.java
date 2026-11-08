@@ -90,6 +90,7 @@ public class ReportWriter {
         row(md, "machine", meta.arch() + ", " + meta.cpus() + " CPUs");
         row(md, "base URL", meta.baseUrl());
         meta.info().forEach((k, v) -> row(md, k, v));
+        row(md, "mode", meta.mode());
         row(md, "split", meta.split());
         row(md, "items run", Integer.toString(items.size()));
         row(md, "unanswerable skipped", Integer.toString(meta.skipped()));

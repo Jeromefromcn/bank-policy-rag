@@ -19,7 +19,7 @@ How to track progress:
 
 - [x] **Phase 0** · Spec, corpus, golden set — spec, manifest, internal docs, golden set committed
 - [x] **Phase 1** · Naive baseline — `evidence/phase1-baseline.md`
-- [ ] **Phase 2** · Structural chunking + hybrid + embedding ablation — `evidence/phase2-*.md` (two comparison tables)
+- [x] **Phase 2** · Structural chunking + hybrid + embedding ablation — `evidence/phase2-*.md` (two comparison tables)
 - [ ] **Phase 3** · Citations, refusals, generation-side eval — `evidence/phase3-*.md`
 - [ ] **Phase 4** · Rerank and query rewriting (optional) — `evidence/phase4-*.md`
 - [ ] **Phase 5** · Permissions, audit, observability, CI gate — green CI gate + permission and injection test records
@@ -367,14 +367,14 @@ good**; every later improvement is measured relative to it.
 
 ### Phase 2 · Structure-aware chunking + hybrid retrieval + embedding ablation
 
-- [ ] Structural chunking:
+- [x] Structural chunking:
   - SPM: by numbered paragraph (regex `^\d+(\.\d+)*\s`), number chain written to `sectionPath`
   - Markdown: by heading
   - Parent–child: retrieve small chunks, return the full section
-- [ ] BM25 leg + application-layer RRF fusion (k = 60); the `mode` parameter supports all three modes
-- [ ] Retrieval ablation: `VECTOR` / `BM25` / `HYBRID` × two chunking strategies, six runs
+- [x] BM25 leg + application-layer RRF fusion (k = 60); the `mode` parameter supports all three modes
+- [x] Retrieval ablation: `VECTOR` / `BM25` / `HYBRID` × two chunking strategies, six runs
       in total, broken down by `category`
-- [ ] Embedding ablation: the three models from §2, fixed on `HYBRID` with structural chunking
+- [x] Embedding ablation: the three models from §2, fixed on `HYBRID` with structural chunking
 
 **Exit**: two comparison tables. Hybrid retrieval is expected to clearly win on the
 `exact-term` subset (paragraph numbers, module codes); how large is the gap between small
@@ -637,6 +637,6 @@ The repo can be made public once Phase 0–1 are done, with the README marked "i
   - [x] DeepSeek's current model names (Phase 0)
   - [x] Current versions of each SPM module (Phase 0)
   - [x] Whether the HKMA terms have changed (Phase 0)
-  - [ ] The ES `rrf` retriever's licence requirements (Phase 2)
+  - [x] The ES `rrf` retriever's licence requirements (Phase 2) — conflicting evidence, see spec 02 §2
   - [ ] The arm64 reranker approach (llama.cpp or Python sidecar) and image versions (Phase 4)
   - [ ] Whether in-process ONNX can load `nomic-embed-text` on aarch64 (§8, optional)

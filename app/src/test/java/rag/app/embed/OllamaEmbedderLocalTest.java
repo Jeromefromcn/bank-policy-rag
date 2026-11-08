@@ -16,7 +16,7 @@ class OllamaEmbedderLocalTest {
     void realOllamaReturns768() {
         String url = System.getenv().getOrDefault("OLLAMA_URL", "http://127.0.0.1:11434");
         var model = OllamaEmbeddingModel.builder().ollamaApi(OllamaApi.builder().baseUrl(url).build()).build();
-        var embedder = new OllamaEmbedder(model, new RagProperties.Embedding("nomic-embed-text", 3, 16, ".cache/embeddings"));
+        var embedder = new OllamaEmbedder(model, OllamaEmbedderTest.config("nomic"));
         assertThat(embedder.embedQuery("tolerance for disruption")).hasSize(768);
         assertThat(embedder.embedDocuments(java.util.List.of("a", "b"))).hasSize(2);
     }

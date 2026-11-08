@@ -8,11 +8,12 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Service;
 import rag.app.search.SearchHit;
-import rag.app.search.VectorRetriever;
+import rag.app.search.HybridSearch;
+import rag.app.search.Mode;
 import rag.app.security.Principal;
 
 /**
- * Phase 1 grounded answer: vector top-k → prompt v1 → LLM. Every retrieved source is returned as a
+ * Phase 1 grounded answer: retrieval (any mode) top-k → prompt v1 → LLM. Every retrieved source is returned as a
  * numbered citation; validation and refusal arrive in Phase 3.
  */
 @Service
@@ -22,20 +23,20 @@ public class AskService {
     static final String NO_SOURCES = "No sources were found for this question.";
     static final int QUOTE_CHARS = 300;
 
-    private final VectorRetriever retriever;
+    private final HybridSearch retriever;
     private final PromptRenderer renderer;
     private final ChatModel chat;
 
-    public AskService(VectorRetriever retriever, PromptRenderer renderer, ChatModel chat) {
+    public AskService(HybridSearch retriever, PromptRenderer renderer, ChatModel chat) {
         this.retriever = retriever;
         this.renderer = renderer;
         this.chat = chat;
     }
 
-    public AskResponse ask(String question, int topK, Principal principal) {
+    public AskResponse ask(String question, int topK, Mode mode, Principal principal) {
         String answerId = "a_" + UlidCreator.getMonotonicUlid();
         long t0 = System.nanoTime();
-        List<SearchHit> hits = retriever.search(question, topK, principal);
+        List<SearchHit> hits = retriever.search(question, topK, mode, principal);
         long retrievalMs = ms(t0);
         if (hits.isEmpty()) {
             return new AskResponse(answerId, "ANSWERED", NO_SOURCES, List.of(), new AskResponse.Usage(null, null),

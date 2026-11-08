@@ -14,12 +14,11 @@ import org.springframework.stereotype.Component;
 import rag.app.RagProperties;
 import rag.app.embed.Embedder;
 import rag.app.es.ChunkDocument;
-import rag.app.es.IndexNames;
 import rag.app.security.Principal;
 import rag.core.model.Clearance;
 
 /**
- * kNN retrieval over the chunks alias. The classification filter sits inside the kNN clause, so it
+ * kNN retrieval over the chunks index (the alias unless {@code rag.retrieval.chunks-index} says otherwise). The classification filter sits inside the kNN clause, so it
  * is applied during the HNSW search (pre-filter), never afterwards (ROADMAP §4.2).
  */
 @Component
@@ -35,6 +34,7 @@ public class VectorRetriever {
         this.props = props;
     }
 
+    /** Best-first hits; {@code scores} carries {@code vectorRank} and the raw cosine {@code similarity}. */
     public List<SearchHit> search(String query, int topK, Principal principal) {
         float[] vector = embedder.embedQuery(query);
         List<Float> queryVector = new ArrayList<>(vector.length);
@@ -47,7 +47,7 @@ public class VectorRetriever {
 
         List<Hit<ChunkDocument>> hits;
         try {
-            hits = client.search(s -> s.index(IndexNames.chunksAlias(props.envPrefix()))
+            hits = client.search(s -> s.index(props.retrieval().chunksTarget(props.envPrefix()))
                             .size(topK)
                             .knn(k -> k.field("embedding").queryVector(queryVector).k(topK).numCandidates(numCandidates)
                                     .filter(f -> f.terms(t -> t.field("classification").terms(v -> v.value(visible)))))

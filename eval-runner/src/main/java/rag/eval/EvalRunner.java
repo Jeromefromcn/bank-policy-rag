@@ -16,7 +16,7 @@ import rag.core.eval.GoldenSet;
 import rag.core.eval.RetrievalMetrics;
 
 /**
- * Eval runner v1: retrieval metrics only (spec 01 §5).
+ * Eval runner: retrieval metrics only (spec 01 §5); {@code --mode} selects the search mode (spec 02 §7).
  *
  * <pre>--base-url=URL [--split=all|dev|test] [--golden=eval/golden-set.yaml] [--corpus=corpus] [--out=eval/runs]</pre>
  *
@@ -36,11 +36,11 @@ public final class EvalRunner {
 
     static int run(String[] args, Map<String, String> env, PrintStream out) {
         Map<String, String> opts = new HashMap<>(Map.of("split", "all", "golden", "eval/golden-set.yaml", "corpus", "corpus",
-                "out", "eval/runs"));
+                "out", "eval/runs", "mode", "HYBRID"));
         for (String a : args) {
             int eq = a.indexOf('=');
             if (!a.startsWith("--") || eq < 0) {
-                out.println("usage: --base-url=URL [--split=all|dev|test] [--golden=…] [--corpus=…] [--out=…]");
+                out.println("usage: --base-url=URL [--split=all|dev|test] [--mode=VECTOR|BM25|HYBRID] [--golden=…] [--corpus=…] [--out=…]");
                 return 2;
             }
             opts.put(a.substring(2, eq), a.substring(eq + 1));
@@ -55,10 +55,15 @@ public final class EvalRunner {
             out.println("error: --split must be all, dev or test");
             return 2;
         }
+        String mode = opts.get("mode");
+        if (!List.of("VECTOR", "BM25", "HYBRID").contains(mode)) {
+            out.println("error: --mode must be VECTOR, BM25 or HYBRID");
+            return 2;
+        }
 
         try {
             List<GoldenItem> items = GoldenSet.load(Path.of(opts.get("golden")), CorpusLoader.knownDocIds(Path.of(opts.get("corpus"))));
-            var client = new SearchClient(URI.create(opts.get("base-url")), key);
+            var client = new SearchClient(URI.create(opts.get("base-url")), key, mode);
             Map<String, String> info = client.info();
             for (String required : REQUIRED_INFO) {
                 if (info.getOrDefault(required, "").isBlank()) {
@@ -83,7 +88,7 @@ public final class EvalRunner {
                 results.add(new ItemResult(item, RetrievalMetrics.score(item.expectedSources(), res.hits()), res.latencyMs()));
             }
 
-            RunMetadata meta = RunMetadata.collect(opts.get("base-url"), info, split, skipped);
+            RunMetadata meta = RunMetadata.collect(opts.get("base-url"), info, split, mode, skipped);
             Path dir = Path.of(opts.get("out")).resolve(RUN_ID.format(Instant.now()));
             new ReportWriter().write(dir, meta, results);
             out.println("wrote " + dir.resolve("report.md") + " (" + results.size() + " items, " + skipped + " unanswerable skipped)");

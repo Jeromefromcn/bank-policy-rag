@@ -15,12 +15,14 @@ public record RunMetadata(
         String baseUrl,
         Map<String, String> info,
         String split,
+        String mode,
         int skipped) {
 
-    public static RunMetadata collect(String baseUrl, Map<String, String> info, String split, int skipped) {
+    public static RunMetadata collect(String baseUrl, Map<String, String> info, String split, String mode,
+            int skipped) {
         return new RunMetadata(Instant.now().truncatedTo(ChronoUnit.SECONDS).toString(), git("rev-parse", "HEAD"),
                 !git("status", "--porcelain").isEmpty(), System.getProperty("os.arch"),
-                Runtime.getRuntime().availableProcessors(), baseUrl, java.util.Collections.unmodifiableMap(new java.util.TreeMap<>(info)), split, skipped);
+                Runtime.getRuntime().availableProcessors(), baseUrl, java.util.Collections.unmodifiableMap(new java.util.TreeMap<>(info)), split, mode, skipped);
     }
 
     private static String git(String... args) {

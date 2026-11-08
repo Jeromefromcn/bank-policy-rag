@@ -1,0 +1,35 @@
+package rag.app.info;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.TestPropertySource;
+import rag.app.es.ChunkIndexAdmin;
+import rag.app.es.ChunkWriter;
+import rag.app.support.Http;
+import rag.app.support.IntegrationTest;
+import rag.app.support.TestIndex;
+import tools.jackson.databind.json.JsonMapper;
+
+/** An ablation run points the app at one physical index; /actuator/info must describe that index, not the alias. */
+@TestPropertySource(properties = {"rag.env-prefix=t_info", "rag.retrieval.chunks-index=t_info-chunks-fake8-fixed512-v1"})
+class IndexInfoIT extends IntegrationTest {
+
+    @Autowired ChunkIndexAdmin admin;
+    @Autowired ChunkWriter writer;
+
+    @BeforeEach
+    void index() {
+        TestIndex.rebuild(admin, writer, "t_info", TestIndex.mixed("tolerance for disruption"));
+    }
+
+    @Test
+    void describesTheConfiguredPhysicalIndex() {
+        var r = Http.get(port, "/actuator/info", KEY);
+        var rag = JsonMapper.builder().build().readTree(r.body()).get("rag");
+        assertThat(rag.get("index").asString()).isEqualTo("t_info-chunks-fake8-fixed512-v1");
+        assertThat(rag.get("chunkerVersion").asString()).isEqualTo("fixed-512-64-cl100k");
+    }
+}
