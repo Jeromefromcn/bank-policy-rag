@@ -352,7 +352,7 @@ before any business code.
 ### Phase 1 · Naive baseline
 
 - [x] Local environment: `compose.yaml` runs ES and Ollama (§7)
-- [ ] Ingest v1:
+- [x] Ingest v1:
   - PDF: PDFBox per-page extraction → strip headers/footers → record page numbers
   - Markdown: read front matter for classification
   - Then: fixed-length chunking (512 tokens / 64 overlap) → embedding → `rag-chunks`

@@ -7,11 +7,11 @@ import rag.core.ids.Hashes;
 import rag.core.parse.TestPdfs;
 
 /** A self-made corpus directory: one generated PDF module and two Markdown documents. */
-final class TestCorpus {
+public final class TestCorpus {
 
     private TestCorpus() {}
 
-    static Path create(Path tmp) throws IOException {
+    public static Path create(Path tmp) throws IOException {
         Path root = Files.createDirectories(tmp.resolve("corpus"));
         Files.createDirectories(root.resolve("raw"));
         Files.createDirectories(root.resolve("internal"));
@@ -23,7 +23,7 @@ final class TestCorpus {
         return root;
     }
 
-    static void writeManifest(Path root, String sha) throws IOException {
+    public static void writeManifest(Path root, String sha) throws IOException {
         Files.writeString(root.resolve("manifest.yaml"), """
                 modules:
                   - docId: test-ab-1
@@ -36,7 +36,7 @@ final class TestCorpus {
                 """.formatted(sha));
     }
 
-    static String markdown(String docId, String classification, String sourceType) {
+    public static String markdown(String docId, String classification, String sourceType) {
         return """
                 ---
                 docId: %s

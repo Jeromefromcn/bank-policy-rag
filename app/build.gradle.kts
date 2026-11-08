@@ -15,6 +15,7 @@ dependencies {
     implementation("org.springframework.ai:spring-ai-starter-model-ollama")
     implementation("com.github.f4b6a3:ulid-creator:5.2.4")
 
+    testImplementation(testFixtures(project(":core")))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.testcontainers:testcontainers-elasticsearch")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
