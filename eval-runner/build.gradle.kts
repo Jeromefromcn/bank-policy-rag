@@ -5,6 +5,7 @@ plugins {
 dependencies {
     implementation(project(":core"))
     implementation("tools.jackson.core:jackson-databind")
+    testImplementation(testFixtures(project(":core")))
 }
 
 application {

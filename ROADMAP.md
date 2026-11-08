@@ -358,7 +358,7 @@ before any business code.
   - Then: fixed-length chunking (512 tokens / 64 overlap) → embedding → `rag-chunks`
 - [x] `/v1/search` (`VECTOR` mode only), `/v1/ask`: vector top-5 → prompt → DeepSeek
       → answer + sources
-- [ ] Eval runner v1: measures **retrieval** only — Recall@5, MRR, nDCG@10; outputs JSON + Markdown
+- [x] Eval runner v1: measures **retrieval** only — Recall@5, MRR, nDCG@10; outputs JSON + Markdown
 - [x] Integration tests: Testcontainers runs ES; PDF parsing uses a **self-made small PDF**
       as the test fixture (not the SPM text)
 
