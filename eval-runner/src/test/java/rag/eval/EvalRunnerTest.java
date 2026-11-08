@@ -73,6 +73,16 @@ class EvalRunnerTest {
     }
 
     @Test
+    void missingIndexVersionsFailBeforeSearching() throws Exception {
+        try (var stub = new StubServer()) {
+            stub.infoBody = "{\"rag\":{}}";
+            assertThat(run(stub, Map.of("RAG_KEY_DEV", "k"))).isEqualTo(1);
+            assertThat(stub.searches()).isZero();
+            assertThat(Files.exists(tmp.resolve("runs"))).isFalse();
+        }
+    }
+
+    @Test
     void missingKeyExits2() throws Exception {
         try (var stub = new StubServer()) {
             assertThat(run(stub, Map.of())).isEqualTo(2);

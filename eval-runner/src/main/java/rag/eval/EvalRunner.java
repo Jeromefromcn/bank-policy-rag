@@ -25,6 +25,7 @@ import rag.core.eval.RetrievalMetrics;
 public final class EvalRunner {
 
     static final int TOP_K = 10;
+    static final List<String> REQUIRED_INFO = List.of("corpusVersion", "chunkerVersion", "embeddingModel");
     private static final DateTimeFormatter RUN_ID = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'").withZone(ZoneOffset.UTC);
 
     private EvalRunner() {}
@@ -59,6 +60,14 @@ public final class EvalRunner {
             List<GoldenItem> items = GoldenSet.load(Path.of(opts.get("golden")), CorpusLoader.knownDocIds(Path.of(opts.get("corpus"))));
             var client = new SearchClient(URI.create(opts.get("base-url")), key);
             Map<String, String> info = client.info();
+            for (String required : REQUIRED_INFO) {
+                if (info.getOrDefault(required, "").isBlank()) {
+                    // No live index behind the alias (wrong RAG_ENV_PREFIX, or a rebuild in progress):
+                    // scoring it would produce an all-zero report.
+                    out.println("error: /actuator/info has no " + required + "; is the chunks index ingested?");
+                    return 1;
+                }
+            }
 
             List<ItemResult> results = new ArrayList<>();
             int skipped = 0;
