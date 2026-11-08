@@ -8,15 +8,44 @@ rag:
         clearance: restricted
         roles: []
   embedding:
-    model: nomic-embed-text
+    # Key into `models`; one model per process (RAG_EMBEDDING_MODEL=bge-small|bge-m3 for the ablation).
+    model: ${RAG_EMBEDDING_MODEL:nomic}
     num-thread: 3
     batch-size: 16
     cache-dir: .cache/embeddings
+    models:
+      nomic:
+        ollama-model: nomic-embed-text
+        short-name: nomic
+        dims: 768
+        query-prefix: "search_query: "
+        document-prefix: "search_document: "
+      bge-small:
+        # Community GGUF import (Q8_0); there is no official Ollama tag. See spec 02 §2.
+        ollama-model: hf.co/CompendiumLabs/bge-small-en-v1.5-gguf:Q8_0
+        short-name: bgesmall
+        dims: 384
+        query-prefix: "Represent this sentence for searching relevant passages: "
+        document-prefix: ""
+      bge-m3:
+        ollama-model: bge-m3
+        short-name: bgem3
+        dims: 1024
+        query-prefix: ""
+        document-prefix: ""
   retrieval:
     num-candidates: 100
+    leg-size: 50
+    # Blank = the <prefix>-chunks / <prefix>-sections aliases. Set to read one physical index (ablation runs).
+    chunks-index: ${RAG_CHUNKS_INDEX:}
+    sections-index: ${RAG_SECTIONS_INDEX:}
   chunking:
+    kind: fixed
     max-tokens: 512
     overlap-tokens: 64
+    structural:
+      max-tokens: 400
+      min-tokens: 60
   corpus:
     root: corpus
 

@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,8 +28,18 @@ import rag.app.RagProperties;
 class OllamaEmbedderTest {
 
     private final EmbeddingModel model = mock(EmbeddingModel.class);
-    private final OllamaEmbedder embedder =
-            new OllamaEmbedder(model, new RagProperties.Embedding("nomic-embed-text", 3, 16, ".cache/embeddings"));
+    static final RagProperties.ModelSpec NOMIC =
+            new RagProperties.ModelSpec("nomic-embed-text", "nomic", 768, "search_query: ", "search_document: ");
+    static final RagProperties.ModelSpec BGE_SMALL = new RagProperties.ModelSpec("hf.co/CompendiumLabs/bge-small-en-v1.5-gguf:Q8_0",
+            "bgesmall", 384, "Represent this sentence for searching relevant passages: ", "");
+    static final RagProperties.ModelSpec BGE_M3 = new RagProperties.ModelSpec("bge-m3", "bgem3", 1024, "", "");
+
+    static RagProperties.Embedding config(String selected) {
+        return new RagProperties.Embedding(selected, 3, 16, ".cache/embeddings",
+                Map.of("nomic", NOMIC, "bge-small", BGE_SMALL, "bge-m3", BGE_M3));
+    }
+
+    private final OllamaEmbedder embedder = new OllamaEmbedder(model, config("nomic"));
 
     @BeforeEach
     void answerWithVectors() {
@@ -93,5 +104,47 @@ class OllamaEmbedderTest {
     void transportErrorBecomesUnavailable() {
         doThrow(new ResourceAccessException("down")).when(model).call(any(EmbeddingRequest.class));
         assertThatThrownBy(() -> embedder.embedQuery("x")).isInstanceOf(EmbeddingUnavailableException.class);
+    }
+
+    @Test
+    void bgeSmallPrefixesQueriesOnly() {
+        var bge = new OllamaEmbedder(model, config("bge-small"));
+        doReturn(response(1, 384)).when(model).call(any(EmbeddingRequest.class));
+
+        bge.embedQuery("what is X");
+        bge.embedDocuments(List.of("alpha"));
+
+        var captor = ArgumentCaptor.forClass(EmbeddingRequest.class);
+        verify(model, times(2)).call(captor.capture());
+        assertThat(captor.getAllValues().get(0).getInstructions())
+                .containsExactly("Represent this sentence for searching relevant passages: what is X");
+        assertThat(captor.getAllValues().get(1).getInstructions()).containsExactly("alpha");
+        assertThat(bge.dims()).isEqualTo(384);
+        assertThat(bge.modelId()).isEqualTo("ollama/hf.co/CompendiumLabs/bge-small-en-v1.5-gguf:Q8_0");
+        assertThat(bge.shortName()).isEqualTo("bgesmall");
+    }
+
+    @Test
+    void bgeM3UsesNoPrefixAtAll() {
+        var m3 = new OllamaEmbedder(model, config("bge-m3"));
+        doReturn(response(1, 1024)).when(model).call(any(EmbeddingRequest.class));
+
+        m3.embedQuery("what is X");
+
+        assertThat(captureOne().getInstructions()).containsExactly("what is X");
+        assertThat(m3.dims()).isEqualTo(1024);
+    }
+
+    @Test
+    void wrongDimsMessageNamesTheModel() {
+        var m3 = new OllamaEmbedder(model, config("bge-m3"));
+        doReturn(response(1, 768)).when(model).call(any(EmbeddingRequest.class));
+        assertThatThrownBy(() -> m3.embedQuery("x")).hasMessageContaining("ollama/bge-m3").hasMessageContaining("768");
+    }
+
+    @Test
+    void unknownModelNameListsTheConfiguredOnes() {
+        assertThatThrownBy(() -> new OllamaEmbedder(model, config("nope")))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("nope").hasMessageContaining("bge-small");
     }
 }

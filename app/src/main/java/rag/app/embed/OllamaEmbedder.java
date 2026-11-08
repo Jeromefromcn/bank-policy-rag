@@ -9,34 +9,32 @@ import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.ai.ollama.api.OllamaEmbeddingOptions;
 import rag.app.RagProperties;
 
-/** {@code nomic-embed-text} via Spring AI's Ollama {@link EmbeddingModel}, with its task prefixes. */
+/** An Ollama embedding model via Spring AI's {@link EmbeddingModel}, with the task prefixes of its configured {@code ModelSpec}. */
 public class OllamaEmbedder implements Embedder {
-
-    static final String QUERY_PREFIX = "search_query: ";
-    static final String DOCUMENT_PREFIX = "search_document: ";
-    static final int DIMS = 768;
 
     private final EmbeddingModel model;
     private final RagProperties.Embedding cfg;
+    private final RagProperties.ModelSpec spec;
     private final OllamaEmbeddingOptions options;
 
     public OllamaEmbedder(EmbeddingModel model, RagProperties.Embedding cfg) {
-        if (!cfg.model().equals("nomic-embed-text")) {
-            // Prefixes and dimensions below are specific to nomic; other models arrive in Phase 2.
-            throw new IllegalArgumentException("unsupported embedding model: " + cfg.model());
+        this.spec = cfg.models().get(cfg.model());
+        if (spec == null) {
+            throw new IllegalArgumentException("unknown embedding model '" + cfg.model() + "'; configured: "
+                    + new java.util.TreeSet<>(cfg.models().keySet()));
         }
         this.model = model;
         this.cfg = cfg;
-        this.options = OllamaEmbeddingOptions.builder().model(cfg.model()).numThread(cfg.numThread()).build();
+        this.options = OllamaEmbeddingOptions.builder().model(spec.ollamaModel()).numThread(cfg.numThread()).build();
     }
 
-    @Override public String modelId() { return "ollama/" + cfg.model(); }
-    @Override public String shortName() { return "nomic"; }
-    @Override public int dims() { return DIMS; }
+    @Override public String modelId() { return "ollama/" + spec.ollamaModel(); }
+    @Override public String shortName() { return spec.shortName(); }
+    @Override public int dims() { return spec.dims(); }
 
     @Override
     public float[] embedQuery(String query) {
-        return call(List.of(QUERY_PREFIX + query)).getFirst();
+        return call(List.of(spec.queryPrefix() + query)).getFirst();
     }
 
     @Override
@@ -44,7 +42,7 @@ public class OllamaEmbedder implements Embedder {
         List<float[]> out = new ArrayList<>(texts.size());
         for (int i = 0; i < texts.size(); i += cfg.batchSize()) {
             List<String> batch = texts.subList(i, Math.min(texts.size(), i + cfg.batchSize()))
-                    .stream().map(t -> DOCUMENT_PREFIX + t).toList();
+                    .stream().map(t -> spec.documentPrefix() + t).toList();
             out.addAll(call(batch));
         }
         return out;
@@ -64,8 +62,8 @@ public class OllamaEmbedder implements Embedder {
         List<float[]> vectors = new ArrayList<>(results.size());
         for (Embedding e : results) {
             float[] v = e.getOutput();
-            if (v.length != DIMS) {
-                throw new IllegalStateException(modelId() + " returned " + v.length + " dims, expected " + DIMS);
+            if (v.length != dims()) {
+                throw new IllegalStateException(modelId() + " returned " + v.length + " dims, expected " + dims());
             }
             vectors.add(v);
         }
