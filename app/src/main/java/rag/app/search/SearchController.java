@@ -10,15 +10,16 @@ import rag.app.security.Principal;
 @RestController
 public class SearchController {
 
-    private final VectorRetriever retriever;
+    private final HybridSearch search;
 
-    public SearchController(VectorRetriever retriever) {
-        this.retriever = retriever;
+    public SearchController(HybridSearch search) {
+        this.search = search;
     }
 
     @PostMapping("/v1/search")
     SearchResponse search(@RequestBody SearchRequest request, @AuthenticationPrincipal Principal principal) {
-        int topK = request.validatedTopK();
-        return new SearchResponse("q_" + UlidCreator.getMonotonicUlid(), retriever.search(request.query(), topK, principal));
+        var options = request.validated();
+        return new SearchResponse("q_" + UlidCreator.getMonotonicUlid(),
+                search.search(request.query(), options.topK(), options.mode(), principal));
     }
 }

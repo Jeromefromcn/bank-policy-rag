@@ -92,9 +92,11 @@ class AskControllerIT extends IntegrationTest {
     }
 
     @Test
-    void hybridRejected() {
-        assertThat(ask(KEY, Map.of("question", QUERY, "mode", "HYBRID"), 400).get("type").asString())
+    void unknownModeRejectedAndHybridAccepted() {
+        assertThat(ask(KEY, Map.of("question", QUERY, "mode", "FUZZY"), 400).get("type").asString())
                 .isEqualTo("urn:rag:problem:unsupported-mode");
+        assertThat(ask(KEY, Map.of("question", QUERY, "mode", "HYBRID"), 200).get("status").asString()).isEqualTo("ANSWERED");
+        assertThat(ask(KEY, Map.of("question", QUERY, "mode", "BM25"), 200).get("status").asString()).isEqualTo("ANSWERED");
     }
 
     @Test

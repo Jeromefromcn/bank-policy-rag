@@ -62,6 +62,7 @@ class SearchControllerIT extends IntegrationTest {
             assertThat(first.has(f)).as(f).isTrue();
         }
         assertThat(first.get("scores").get("vectorRank").asInt()).isEqualTo(1);
+        assertThat(first.get("scores").get("bm25Rank").asInt()).isEqualTo(1);
         assertThat(first.get("chunkId").asString()).isEqualTo("c-int");
     }
 
@@ -93,16 +94,48 @@ class SearchControllerIT extends IntegrationTest {
     }
 
     @Test
-    void hybridAndRerankUnsupported() {
-        assertProblem(post(Map.of("query", "x", "mode", "HYBRID")), 400, "urn:rag:problem:unsupported-mode");
-        assertProblem(post(Map.of("query", "x", "mode", "BM25")), 400, "urn:rag:problem:unsupported-mode");
+    void everyModeReturnsHitsWithItsOwnScores() {
+        var vector = JSON.readTree(post(Map.of("query", QUERY, "mode", "VECTOR")).body()).get("hits").get(0).get("scores");
+        var bm25 = JSON.readTree(post(Map.of("query", QUERY, "mode", "BM25")).body()).get("hits").get(0).get("scores");
+        var hybrid = JSON.readTree(post(Map.of("query", QUERY, "mode", "HYBRID")).body()).get("hits").get(0).get("scores");
+
+        assertThat(vector.has("vectorRank")).isTrue();
+        assertThat(vector.has("bm25Rank")).isFalse();
+        assertThat(bm25.has("bm25Rank")).isTrue();
+        assertThat(bm25.has("vectorRank")).isFalse();
+        assertThat(hybrid.has("vectorRank") && hybrid.has("bm25Rank")).isTrue();
+    }
+
+    @Test
+    void modeDefaultsToHybrid() {
+        var scores = JSON.readTree(post(Map.of("query", QUERY)).body()).get("hits").get(0).get("scores");
+        assertThat(scores.has("vectorRank") && scores.has("bm25Rank")).isTrue();
+    }
+
+    @Test
+    void unknownModeAndRerankAreRejected() {
+        assertProblem(post(Map.of("query", "x", "mode", "FUZZY")), 400, "urn:rag:problem:unsupported-mode");
         assertProblem(post(Map.of("query", "x", "rerank", true)), 400, "urn:rag:problem:unsupported-mode");
+    }
+
+    @Test
+    void bm25WorksWithoutEmbedder() {
+        doThrow(new EmbeddingUnavailableException("down", null)).when(embedder).embedQuery(anyString());
+        var r = post(Map.of("query", QUERY, "mode", "BM25"));
+        assertThat(r.status()).as(r.body()).isEqualTo(200);
+        assertThat(JSON.readTree(r.body()).get("hits").size()).isPositive();
+    }
+
+    @Test
+    void hybridFailsWhenEmbedderDown() {
+        doThrow(new EmbeddingUnavailableException("down", null)).when(embedder).embedQuery(anyString());
+        assertProblem(post(Map.of("query", "x", "mode", "HYBRID")), 503, "urn:rag:problem:embedding-unavailable");
     }
 
     @Test
     void embeddingFailureReturns503() {
         doThrow(new EmbeddingUnavailableException("down", null)).when(embedder).embedQuery(anyString());
-        assertProblem(post(Map.of("query", "x")), 503, "urn:rag:problem:embedding-unavailable");
+        assertProblem(post(Map.of("query", "x", "mode", "VECTOR")), 503, "urn:rag:problem:embedding-unavailable");
     }
 
     @Test

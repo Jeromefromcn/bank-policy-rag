@@ -371,7 +371,7 @@ good**; every later improvement is measured relative to it.
   - SPM: by numbered paragraph (regex `^\d+(\.\d+)*\s`), number chain written to `sectionPath`
   - Markdown: by heading
   - Parent–child: retrieve small chunks, return the full section
-- [ ] BM25 leg + application-layer RRF fusion (k = 60); the `mode` parameter supports all three modes
+- [x] BM25 leg + application-layer RRF fusion (k = 60); the `mode` parameter supports all three modes
 - [ ] Retrieval ablation: `VECTOR` / `BM25` / `HYBRID` × two chunking strategies, six runs
       in total, broken down by `category`
 - [ ] Embedding ablation: the three models from §2, fixed on `HYBRID` with structural chunking

@@ -45,7 +45,17 @@ public record RagProperties(
      * @param sectionsIndex likewise for {@code <prefix>-sections}
      * @param legSize       hits requested from each leg of a hybrid search
      */
-    public record Retrieval(int numCandidates, int legSize, String chunksIndex, String sectionsIndex) {}
+    public record Retrieval(int numCandidates, int legSize, String chunksIndex, String sectionsIndex) {
+
+        /** The index or alias searches read: the configured one, else the {@code <prefix>-chunks} alias. */
+        public String chunksTarget(String envPrefix) {
+            return chunksIndex == null || chunksIndex.isBlank() ? rag.app.es.IndexNames.chunksAlias(envPrefix) : chunksIndex;
+        }
+
+        public String sectionsTarget(String envPrefix) {
+            return sectionsIndex == null || sectionsIndex.isBlank() ? rag.app.es.IndexNames.sectionsAlias(envPrefix) : sectionsIndex;
+        }
+    }
 
     /** @param kind {@code fixed} or {@code structural}: the chunker ingest uses unless {@code --chunker} says otherwise */
     public record Chunking(String kind, int maxTokens, int overlapTokens, Structural structural) {}
