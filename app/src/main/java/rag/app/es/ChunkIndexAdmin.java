@@ -94,8 +94,12 @@ public class ChunkIndexAdmin {
         }
     }
 
-    public Optional<AliasInfo> aliasInfo(String alias) {
-        List<String> targets = aliasTargets(alias);
+    /** Info for what {@code aliasOrIndex} points at; a physical index name resolves to itself. */
+    public Optional<AliasInfo> aliasInfo(String aliasOrIndex) {
+        List<String> targets = aliasTargets(aliasOrIndex);
+        if (targets.isEmpty() && exists(aliasOrIndex)) {
+            targets = List.of(aliasOrIndex);
+        }
         if (targets.isEmpty()) {
             return Optional.empty();
         }

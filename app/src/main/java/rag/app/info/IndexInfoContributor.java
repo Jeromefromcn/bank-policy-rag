@@ -7,9 +7,8 @@ import org.springframework.boot.actuate.info.InfoContributor;
 import org.springframework.stereotype.Component;
 import rag.app.RagProperties;
 import rag.app.es.ChunkIndexAdmin;
-import rag.app.es.IndexNames;
 
-/** Exposes the live index's versions so eval reports can record them (spec 01 §4). */
+/** Exposes the versions of the index searches read (the alias, or the configured physical index) so eval reports can record them (spec 01 §4). */
 @Component
 public class IndexInfoContributor implements InfoContributor {
 
@@ -24,7 +23,7 @@ public class IndexInfoContributor implements InfoContributor {
     @Override
     public void contribute(Info.Builder builder) {
         Map<String, String> rag = new LinkedHashMap<>();
-        admin.aliasInfo(IndexNames.chunksAlias(props.envPrefix())).ifPresent(info -> {
+        admin.aliasInfo(props.retrieval().chunksTarget(props.envPrefix())).ifPresent(info -> {
             rag.putAll(info.meta());
             rag.put("index", info.index());
         });
