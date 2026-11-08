@@ -1,0 +1,317 @@
+# Golden set. Drafted with AI assistance; every question, source and expected point was
+# reviewed and approved by the author on 2026-11-08 (ROADMAP §10).
+#
+# Schema: ROADMAP §5 Phase 0, plus `split` (spec 00 §11 Q1).
+# Markdown `section` values are heading numbers (`## 2 ...` -> "2"), since the Markdown
+# sectionPath is the heading chain (ROADMAP §4.1). Numbered paragraphs inside a heading
+# (e.g. 2.2) are not sections and are not used here.
+# SPM sections were checked against the PDFs listed in corpus/manifest.yaml. Expected points
+# paraphrase the SPM; they never quote it (no SPM text in git).
+# Note: the SPM says "tolerance for disruption" (never "impact tolerance") and has no "RTO".
+#
+# Distribution: factual 14, exact-term 8, multi-hop 7, restricted 7, unanswerable 6 = 42
+# Split: dev 30, test 12 (stratified by category)
+
+# ---------------- factual ----------------
+- id: g001
+  question: "What severity levels does Example Bank use for technology incidents?"
+  category: factual
+  expectedSources: [{docId: eb-incident-mgmt-standard, section: "3"}]
+  expectedPoints: ["four levels S1 to S4", "S1 means a critical operation is unavailable or customer data may be compromised"]
+  minClearance: internal
+  split: dev
+- id: g002
+  question: "How soon after an S1 incident is declared must the CIO be notified?"
+  category: factual
+  expectedSources: [{docId: eb-incident-mgmt-standard, section: "4"}]
+  expectedPoints: ["within 30 minutes of declaration"]
+  minClearance: internal
+  split: dev
+- id: g003
+  question: "When must a post-incident review be completed, and for which incidents?"
+  category: factual
+  expectedSources: [{docId: eb-incident-mgmt-standard, section: "6"}]
+  expectedPoints: ["within 10 business days of resolution", "for every S1 and S2 incident"]
+  minClearance: internal
+  split: test
+- id: g004
+  question: "How far in advance must a normal change be submitted to the CAB?"
+  category: factual
+  expectedSources: [{docId: eb-change-mgmt-policy, section: "2"}]
+  expectedPoints: ["at least 5 business days before implementation"]
+  minClearance: internal
+  split: dev
+- id: g005
+  question: "Who approves an emergency change, and when is it reviewed?"
+  category: factual
+  expectedSources: [{docId: eb-change-mgmt-policy, section: "2"}]
+  expectedPoints: ["approved by the Head of Technology Operations", "reviewed retrospectively by the CAB within 2 business days"]
+  minClearance: internal
+  split: dev
+- id: g006
+  question: "Can a developer deploy their own change to production?"
+  category: factual
+  expectedSources: [{docId: eb-change-mgmt-policy, section: "4"}]
+  expectedPoints: ["no, the developer may not deploy their own change", "deployment is done by Release Engineering via the approved pipeline"]
+  minClearance: internal
+  split: test
+- id: g007
+  question: "How often is a full failover test of the payments platform performed?"
+  category: factual
+  expectedSources: [{docId: eb-payments-bcp-runbook, section: "5"}]
+  expectedPoints: ["every six months", "desktop walkthrough every quarter"]
+  minClearance: internal
+  split: dev
+- id: g008
+  question: "Who decides whether to fail over PayHub to the recovery site?"
+  category: factual
+  expectedSources: [{docId: eb-payments-bcp-runbook, section: "3"}]
+  expectedPoints: ["the Head of Technology Operations", "the CIO if they cannot be reached within 15 minutes"]
+  minClearance: internal
+  split: dev
+- id: g009
+  question: "When is an unresolved settlement exception escalated to the Head of Operations?"
+  category: factual
+  expectedSources: [{docId: eb-settlement-exception-sop, section: "3"}]
+  expectedPoints: ["when aged more than 2 business days"]
+  minClearance: internal
+  split: test
+- id: g010
+  question: "How quickly must a leaver's access be revoked?"
+  category: factual
+  expectedSources: [{docId: eb-access-mgmt-standard, section: "2"}]
+  expectedPoints: ["within 1 business day of the last working day"]
+  minClearance: internal
+  split: dev
+- id: g011
+  question: "What is operational resilience according to the HKMA's OR-2 module?"
+  category: factual
+  expectedSources: [{docId: spm-or-2, section: "1.3"}]
+  expectedPoints: ["identify and mitigate risks to delivery of critical operations", "keep critical operations running during disruption without breaching the tolerance for disruption, even in severe but plausible scenarios", "recover to normal quickly and learn from disruptions and near misses"]
+  minClearance: public
+  split: dev
+- id: g012
+  question: "What should a business continuity plan cover according to TM-G-2?"
+  category: factual
+  expectedSources: [{docId: spm-tm-g-2, section: "3"}, {docId: spm-tm-g-2, section: "4"}, {docId: spm-tm-g-2, section: "6"}]
+  expectedPoints: ["business impact analysis and recovery strategy formulation", "crisis management, business resumption and technology recovery", "testing, rehearsal and periodic maintenance of the plan"]
+  minClearance: public
+  split: dev
+- id: g013
+  question: "What are the board's responsibilities for outsourcing under SA-2?"
+  category: factual
+  expectedSources: [{docId: spm-sa-2, section: "2.1"}]
+  expectedPoints: ["accountability for an outsourced activity stays with the Board and management", "only day-to-day managerial responsibility can be transferred, not accountability"]
+  minClearance: public
+  split: test
+- id: g014
+  question: "What are the main components of an operational risk management framework under OR-1?"
+  category: factual
+  expectedSources: [{docId: spm-or-1, section: "3.2"}]
+  expectedPoints: ["risk governance and risk culture", "three lines of defence", "risk identification, assessment, monitoring, reporting, control and mitigation"]
+  minClearance: public
+  split: dev
+
+# ---------------- exact-term ----------------
+- id: g015
+  question: "What is the RPO for PayHub?"
+  category: exact-term
+  expectedSources: [{docId: eb-payments-bcp-runbook, section: "2"}]
+  expectedPoints: ["5 minutes of committed transactions"]
+  minClearance: internal
+  split: dev
+- id: g016
+  question: "What is the RTO for PayHub?"
+  category: exact-term
+  expectedSources: [{docId: eb-payments-bcp-runbook, section: "2"}]
+  expectedPoints: ["2 hours from the decision to invoke"]
+  minClearance: internal
+  split: test
+- id: g017
+  question: "Which site is DC-East and what role does it play?"
+  category: exact-term
+  expectedSources: [{docId: eb-payments-bcp-runbook, section: "1"}]
+  expectedPoints: ["the recovery site for PayHub", "primary site is DC-West"]
+  minClearance: internal
+  split: dev
+- id: g018
+  question: "On which days does the CAB meet?"
+  category: exact-term
+  expectedSources: [{docId: eb-change-mgmt-policy, section: "3"}]
+  expectedPoints: ["Tuesday and Thursday"]
+  minClearance: internal
+  split: dev
+- id: g019
+  question: "What does OR-2 mean by 'severe but plausible scenarios'?"
+  category: exact-term
+  expectedSources: [{docId: spm-or-2, section: "1.3"}, {docId: spm-or-2, section: "4.3"}]
+  expectedPoints: ["situations causing significant disruption that are unlikely but remain probable", "AIs should consider varied scenarios (types, severity, duration) such as pandemics, natural disasters or third-party failures"]
+  minClearance: public
+  split: dev
+- id: g020
+  question: "Under OR-2, what is a tolerance for disruption and who should approve it?"
+  category: exact-term
+  expectedSources: [{docId: spm-or-2, section: "1.3"}, {docId: spm-or-2, section: "3.3"}]
+  expectedPoints: ["the most disruption to a critical operation the AI is willing to accept", "approved by the Board and reviewed at least annually"]
+  minClearance: public
+  split: test
+- id: g021
+  question: "Under TM-G-2, what determines the recovery priority of individual services?"
+  category: exact-term
+  expectedSources: [{docId: spm-tm-g-2, section: "3.2"}]
+  expectedPoints: ["the business impact analysis, specifically its time-frame assessment", "inter-dependency among critical operations"]
+  minClearance: public
+  split: dev
+- id: g022
+  question: "What is the 17:30 cut-off and what happens if a corporate payment misses it?"
+  category: exact-term
+  expectedSources: [{docId: eb-settlement-exception-sop, section: "2"}, {docId: eb-settlement-exception-sop, section: "3"}]
+  expectedPoints: ["payment not released before the 17:30 cut-off is a missed cut-off exception", "logged as an incident if a system fault caused it"]
+  minClearance: internal
+  split: dev
+
+# ---------------- multi-hop (SPM + internal) ----------------
+- id: g023
+  question: "Does Example Bank's post-incident review timeline address the TM-G-1 expectation on incident management?"
+  category: multi-hop
+  expectedSources: [{docId: spm-tm-g-1, section: "5.1.3"}, {docId: eb-incident-mgmt-standard, section: "6"}]
+  expectedPoints: ["TM-G-1 expects a problem management system to escalate, record, analyse and track incidents until rectification", "Example Bank reviews S1/S2 incidents within 10 business days with root cause and tracked actions"]
+  minClearance: internal
+  split: dev
+- id: g024
+  question: "How does Example Bank's change freeze policy relate to TM-G-1's guidance on change management?"
+  category: multi-hop
+  expectedSources: [{docId: spm-tm-g-1, section: "4.3"}, {docId: eb-change-mgmt-policy, section: "5"}]
+  expectedPoints: ["TM-G-1 expects changes to production to be planned, reviewed and approved", "TM-G-1 does not prescribe freeze periods; Example Bank adds them at quarter end, 15 Dec to 2 Jan and around Lunar New Year"]
+  minClearance: internal
+  split: test
+- id: g025
+  question: "Does the PayHub BCP testing frequency meet TM-G-2's expectations on testing?"
+  category: multi-hop
+  expectedSources: [{docId: spm-tm-g-2, section: "6.1"}, {docId: eb-payments-bcp-runbook, section: "5"}]
+  expectedPoints: ["TM-G-2 leaves the testing frequency to the AI, based on impact, number of critical operations and changes in the environment", "TM-G-2 expects senior management to participate in testing", "PayHub runs a full failover every six months and a quarterly walkthrough"]
+  minClearance: internal
+  split: dev
+- id: g026
+  question: "Is Example Bank's segregation of duties for production deployment consistent with TM-G-1?"
+  category: multi-hop
+  expectedSources: [{docId: spm-tm-g-1, section: "4.3.1"}, {docId: spm-tm-g-1, section: "2.2.2"}, {docId: eb-change-mgmt-policy, section: "4"}]
+  expectedPoints: ["TM-G-1 expects changes not to reach production without review and approval by other authorised personnel, with adequate segregation of duties", "developers may not deploy their own changes"]
+  minClearance: internal
+  split: dev
+- id: g027
+  question: "How does Example Bank's privileged access review compare with TM-G-1's guidance on access control?"
+  category: multi-hop
+  expectedSources: [{docId: spm-tm-g-1, section: "3.2"}, {docId: eb-access-mgmt-standard, section: "3"}]
+  expectedPoints: ["TM-G-1 expects extra care over privileged and emergency IDs, including monitoring their activities", "Example Bank reviews privileged accounts quarterly and records sessions"]
+  minClearance: internal
+  split: test
+- id: g028
+  question: "If a system fault makes a corporate payment miss its cut-off, which procedures apply and how quickly must the CIO hear about it if it is S1?"
+  category: multi-hop
+  expectedSources: [{docId: eb-settlement-exception-sop, section: "3"}, {docId: eb-incident-mgmt-standard, section: "4"}]
+  expectedPoints: ["logged under the Technology Incident Management Standard", "CIO notified within 30 minutes of S1 declaration"]
+  minClearance: internal
+  split: dev
+- id: g029
+  question: "Are emergency changes allowed during a change freeze, and who must approve them?"
+  category: multi-hop
+  expectedSources: [{docId: eb-change-mgmt-policy, section: "2"}, {docId: eb-change-mgmt-policy, section: "5"}]
+  expectedPoints: ["yes, emergency changes are permitted", "Head of Technology Operations plus additional CIO approval during a freeze"]
+  minClearance: internal
+  split: dev
+
+# ---------------- restricted ----------------
+- id: g030
+  question: "What is Example Bank's tolerance for disruption for retail payments?"
+  category: restricted
+  expectedSources: [{docId: eb-critical-ops-register, section: "2"}]
+  expectedPoints: ["4 hours maximum disruption"]
+  minClearance: restricted
+  split: dev
+- id: g031
+  question: "When did the Board approve the Critical Operations Register?"
+  category: restricted
+  expectedSources: [{docId: eb-critical-ops-register, section: "1"}]
+  expectedPoints: ["18 March 2026"]
+  minClearance: restricted
+  split: dev
+- id: g032
+  question: "Which critical operation would exceed its tolerance for disruption in the 2026 scenario test?"
+  category: restricted
+  expectedSources: [{docId: eb-critical-ops-register, section: "3"}]
+  expectedPoints: ["online and mobile banking access", "under the cloud-provider outage scenario", "remediation plan due 30 September 2026"]
+  minClearance: restricted
+  split: test
+- id: g033
+  question: "Who must be informed within 30 minutes of a confirmed P1 cyber incident?"
+  category: restricted
+  expectedSources: [{docId: eb-cyber-escalation-playbook, section: "3"}]
+  expectedPoints: ["the CISO"]
+  minClearance: restricted
+  split: dev
+- id: g034
+  question: "Which forensic firm does Example Bank retain for cyber incidents?"
+  category: restricted
+  expectedSources: [{docId: eb-cyber-escalation-playbook, section: "4"}]
+  expectedPoints: ["Northgate Forensics", "engaged by the CISO for P1 incidents"]
+  minClearance: restricted
+  split: dev
+- id: g035
+  question: "Which material outsourcing arrangement has an untested exit plan?"
+  category: restricted
+  expectedSources: [{docId: eb-cloud-outsourcing-register, section: "1"}, {docId: eb-cloud-outsourcing-register, section: "2"}]
+  expectedPoints: ["Ledgerline card processing", "test scheduled for Q1 2027"]
+  minClearance: restricted
+  split: test
+- id: g036
+  question: "Does the PayHub RTO fit within the retail payments tolerance for disruption?"
+  category: restricted
+  expectedSources: [{docId: eb-payments-bcp-runbook, section: "2"}, {docId: eb-critical-ops-register, section: "2"}]
+  expectedPoints: ["RTO is 2 hours", "tolerance for disruption is 4 hours, so yes"]
+  minClearance: restricted
+  split: dev
+
+# ---------------- unanswerable ----------------
+- id: g037
+  question: "What is Example Bank's capital adequacy ratio?"
+  category: unanswerable
+  expectedSources: []
+  expectedPoints: []
+  minClearance: public
+  split: dev
+- id: g038
+  question: "What are the HKMA's requirements on climate risk stress testing?"
+  category: unanswerable
+  expectedSources: []
+  expectedPoints: []
+  minClearance: public
+  split: dev
+- id: g039
+  question: "How many employees does Example Bank's SOC have?"
+  category: unanswerable
+  expectedSources: []
+  expectedPoints: []
+  minClearance: public
+  split: test
+- id: g040
+  question: "What is the RTO for the ATM network?"     # register gives a tolerance for disruption, not an RTO
+  category: unanswerable
+  expectedSources: []
+  expectedPoints: []
+  minClearance: public
+  split: dev
+- id: g041
+  question: "What penalties has the HKMA imposed for missed tolerances for disruption?"
+  category: unanswerable
+  expectedSources: []
+  expectedPoints: []
+  minClearance: public
+  split: dev
+- id: g042
+  question: "Which cloud provider hosts Example Bank's mainframe?"
+  category: unanswerable
+  expectedSources: []
+  expectedPoints: []
+  minClearance: public
+  split: test
