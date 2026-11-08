@@ -1,0 +1,33 @@
+# --- Corpus: HKMA SPM PDFs and anything derived from them must never be committed ---
+corpus/raw/
+corpus/**/*.pdf
+# Chunked / extracted text and embedding caches (may contain SPM text)
+.cache/
+corpus/derived/
+*.chunks.jsonl
+
+# --- Secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Gradle / Java ---
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+*.class
+*.log
+hs_err_pid*
+
+# --- Eval run output (only curated reports under evidence/ are committed) ---
+eval/runs/
+eval-runner/out/
+
+# --- IDE / OS ---
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# --- Claude Code local settings ---
+.claude/settings.local.json
