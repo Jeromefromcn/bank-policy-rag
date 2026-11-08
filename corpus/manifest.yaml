@@ -2,10 +2,9 @@
 # No URLs here by design. See README "Getting the SPM files".
 #
 # `file`   — the name the PDF must have under corpus/raw/ (gitignored).
-# `sha256` — of the original, unmodified PDF. Empty until filled in from the downloaded file:
-#            scripts/verify-corpus.sh --print
-# Versions marked "confirm" are taken from the SPM index date only; confirm them against
-# the PDF cover when downloading (docs/specs/00-overall-design.md §10).
+# `sha256` — of the original, unmodified PDF (scripts/verify-corpus.sh --print).
+# `version` and `revisionDate` are as printed on each PDF cover, checked 2026-11-08.
+# Older versions of TM-G-2 and OR-1 are still downloadable; only the versions below match.
 modules:
   - docId: spm-tm-g-1
     code: TM-G-1
@@ -13,32 +12,32 @@ modules:
     version: "V.1"
     revisionDate: 2003-06-24
     file: TM-G-1.pdf
-    sha256: ""
+    sha256: "0d98da4da05e642610a9927410c5ef15cd94056ee9681bf88ea02164c0709555"
   - docId: spm-tm-g-2
     code: TM-G-2
     title: Business Continuity Planning
     version: "V.2"
     revisionDate: 2022-05-31
     file: TM-G-2.pdf
-    sha256: ""
+    sha256: "2a16c6bd045cb6e47109a6d736dbc84852e24639da284dc5c1f46b5334cda44e"
   - docId: spm-or-1
     code: OR-1
     title: Operational Risk Management
-    version: ""               # confirm from PDF cover
+    version: "V.2"
     revisionDate: 2022-07-25
     file: OR-1.pdf
-    sha256: ""
+    sha256: "cd8d072a8836507c6a5ac2534fa79951d79fa0d2ed3bc8c6673d130e92874142"
   - docId: spm-or-2
     code: OR-2
     title: Operational Resilience
-    version: "V.1"            # confirm from PDF cover
+    version: "V.1"
     revisionDate: 2022-05-31
     file: OR-2.pdf
-    sha256: ""
+    sha256: "6f35e0ba4a99f3038aaefcf458952d25aaf7330083afcbd20c60990b715c8e7f"
   - docId: spm-sa-2
     code: SA-2
     title: Outsourcing
-    version: ""               # confirm from PDF cover
+    version: "V.1"
     revisionDate: 2001-12-28
     file: SA-2.pdf
-    sha256: ""
+    sha256: "d5f1f652780f0033e6a0b11728dc7236cb383144fa81276ba34832d3418377cd"

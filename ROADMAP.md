@@ -322,7 +322,7 @@ report under `evidence/`.
 
 - [x] Design spec: goals, non-goals, corpus scope, architecture diagram, permission model,
       eval method, success criteria
-- [ ] Verify the current version of each SPM module; write `corpus/manifest.yaml` (no URLs),
+- [x] Verify the current version of each SPM module; write `corpus/manifest.yaml` (no URLs),
       `verify-corpus.sh`, and the README's corpus-acquisition instructions and disclaimers
 - [ ] 8–12 Example Bank internal documents (§1.2), plus 2–3 adversarial samples
 - [ ] **Golden set of 40+ items** in `eval/golden-set.yaml`:
