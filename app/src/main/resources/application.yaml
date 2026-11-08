@@ -46,6 +46,9 @@ spring:
           model: deepseek-flash
           temperature: 0.0
           max-tokens: 1024
+    # Spring AI retries failed model calls; keep a hung or failing backend from holding a request for minutes.
+    retry:
+      max-attempts: 2
     ollama:
       base-url: ${OLLAMA_URL:http://127.0.0.1:11434}
 

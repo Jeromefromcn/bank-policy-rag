@@ -14,4 +14,9 @@ public class TestBeans {
     Embedder fakeEmbedder() {
         return new FakeEmbedder(DIMS);
     }
+
+    @Bean
+    StubChatModel stubChatModel() {
+        return new StubChatModel();
+    }
 }

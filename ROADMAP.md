@@ -356,10 +356,10 @@ before any business code.
   - PDF: PDFBox per-page extraction → strip headers/footers → record page numbers
   - Markdown: read front matter for classification
   - Then: fixed-length chunking (512 tokens / 64 overlap) → embedding → `rag-chunks`
-- [ ] `/v1/search` (`VECTOR` mode only), `/v1/ask`: vector top-5 → prompt → DeepSeek
+- [x] `/v1/search` (`VECTOR` mode only), `/v1/ask`: vector top-5 → prompt → DeepSeek
       → answer + sources
 - [ ] Eval runner v1: measures **retrieval** only — Recall@5, MRR, nDCG@10; outputs JSON + Markdown
-- [ ] Integration tests: Testcontainers runs ES; PDF parsing uses a **self-made small PDF**
+- [x] Integration tests: Testcontainers runs ES; PDF parsing uses a **self-made small PDF**
       as the test fixture (not the SPM text)
 
 **Exit**: `evidence/phase1-baseline.md`. **This number is deliberately not tuned to look
