@@ -18,7 +18,7 @@ How to track progress:
 - Tick a verification item in §10 when its result is written into the relevant spec.
 
 - [x] **Phase 0** · Spec, corpus, golden set — spec, manifest, internal docs, golden set committed
-- [ ] **Phase 1** · Naive baseline — `evidence/phase1-baseline.md`
+- [x] **Phase 1** · Naive baseline — `evidence/phase1-baseline.md`
 - [ ] **Phase 2** · Structural chunking + hybrid + embedding ablation — `evidence/phase2-*.md` (two comparison tables)
 - [ ] **Phase 3** · Citations, refusals, generation-side eval — `evidence/phase3-*.md`
 - [ ] **Phase 4** · Rerank and query rewriting (optional) — `evidence/phase4-*.md`
@@ -351,15 +351,15 @@ before any business code.
 
 ### Phase 1 · Naive baseline
 
-- [ ] Local environment: `compose.yaml` runs ES and Ollama (§7)
-- [ ] Ingest v1:
+- [x] Local environment: `compose.yaml` runs ES and Ollama (§7)
+- [x] Ingest v1:
   - PDF: PDFBox per-page extraction → strip headers/footers → record page numbers
   - Markdown: read front matter for classification
   - Then: fixed-length chunking (512 tokens / 64 overlap) → embedding → `rag-chunks`
-- [ ] `/v1/search` (`VECTOR` mode only), `/v1/ask`: vector top-5 → prompt → DeepSeek
+- [x] `/v1/search` (`VECTOR` mode only), `/v1/ask`: vector top-5 → prompt → DeepSeek
       → answer + sources
-- [ ] Eval runner v1: measures **retrieval** only — Recall@5, MRR, nDCG@10; outputs JSON + Markdown
-- [ ] Integration tests: Testcontainers runs ES; PDF parsing uses a **self-made small PDF**
+- [x] Eval runner v1: measures **retrieval** only — Recall@5, MRR, nDCG@10; outputs JSON + Markdown
+- [x] Integration tests: Testcontainers runs ES; PDF parsing uses a **self-made small PDF**
       as the test fixture (not the SPM text)
 
 **Exit**: `evidence/phase1-baseline.md`. **This number is deliberately not tuned to look
