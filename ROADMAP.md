@@ -637,6 +637,6 @@ The repo can be made public once Phase 0–1 are done, with the README marked "i
   - [x] DeepSeek's current model names (Phase 0)
   - [x] Current versions of each SPM module (Phase 0)
   - [x] Whether the HKMA terms have changed (Phase 0)
-  - [ ] The ES `rrf` retriever's licence requirements (Phase 2)
+  - [x] The ES `rrf` retriever's licence requirements (Phase 2) — conflicting evidence, see spec 02 §2
   - [ ] The arm64 reranker approach (llama.cpp or Python sidecar) and image versions (Phase 4)
   - [ ] Whether in-process ONNX can load `nomic-embed-text` on aarch64 (§8, optional)

@@ -29,8 +29,8 @@ Results are written into this section before implementation starts.
 
 | Item | How | Result |
 |---|---|---|
-| ES `rrf` retriever licence on self-managed | Elastic subscription page + a live `POST _search` with an `rrf` retriever against a Testcontainers ES with the default (basic) licence | _to fill_ |
-| `bge-small-en-v1.5` and `bge-m3` available on the shared Ollama | `ollama pull` of the exact tag; `/api/embed` returns 384 / 1024 dims | _to fill_ |
+| ES `rrf` retriever licence on self-managed | Elastic subscription page + a live `POST _search` with an `rrf` retriever against a Testcontainers ES with the default (basic) licence | **Conflicting, unresolved.** Web sources (Elastic forum staff reply, user reports of a `403` licence error on 9.0.x Basic) say `rrf` needs an Enterprise-tier licence on self-managed. Live probe 2026-11-08 against `elasticsearch:9.5.5` (pinned digest, security on, no licence installed): an `rrf` retriever over a `match` and a `knn` retriever **succeeded**. `GET _license` returned an empty body, so the licence in force could not be read back. Conclusion: do not rely on it either way; the application-layer RRF decision stands |
+| `bge-small-en-v1.5` and `bge-m3` available on the shared Ollama | `ollama pull` of the exact tag; `/api/embed` returns 384 / 1024 dims | Done 2026-11-08. `bge-m3:latest` (digest `790764642607`, F16) returns 1024 dims. `hf.co/CompendiumLabs/bge-small-en-v1.5-gguf:Q8_0` (digest `830b128269a5`, Q8_0; community GGUF import, no official Ollama tag) returns 384 dims. `nomic-embed-text` unchanged at 768. Author approved the pull. Note the bge-small weights are 8-bit quantised while the others are F16: a confound the ablation report must state |
 
 **Whatever the licence result, RRF stays in the application layer** (ROADMAP §2: easier to
 ablate and unit test). The check only settles the roadmap item.
