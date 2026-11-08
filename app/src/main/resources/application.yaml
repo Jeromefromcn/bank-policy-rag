@@ -1,0 +1,56 @@
+# Defaults; secrets and per-machine values come from environment variables (.env.example).
+rag:
+  env-prefix: ${RAG_ENV_PREFIX:rag_dev}
+  security:
+    api-keys:
+      - key: ${RAG_KEY_DEV:}
+        principal: dev
+        clearance: restricted
+        roles: []
+  embedding:
+    model: nomic-embed-text
+    num-thread: 3
+    batch-size: 16
+    cache-dir: .cache/embeddings
+    timeout: 30s
+  retrieval:
+    num-candidates: 100
+  chunking:
+    max-tokens: 512
+    overlap-tokens: 64
+  corpus:
+    root: corpus
+
+spring:
+  application:
+    name: bank-policy-rag
+  elasticsearch:
+    uris: ${ES_URL:http://127.0.0.1:9200}
+    username: ${rag.env-prefix}
+    password: ${ES_PASSWORD:}
+  mvc:
+    problemdetails:
+      enabled: true
+  ai:
+    model:
+      chat: deepseek
+      embedding: ollama
+    deepseek:
+      api-key: ${DEEPSEEK_API_KEY:}
+      chat:
+        options:
+          model: deepseek-flash
+          temperature: 0.0
+          max-tokens: 1024
+    ollama:
+      base-url: ${OLLAMA_URL:http://127.0.0.1:11434}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  health:
+    # The app's ES user has no cluster privileges, so the default indicator would report DOWN.
+    elasticsearch:
+      enabled: false

@@ -1,0 +1,16 @@
+rag:
+  security:
+    api-keys:
+      - key: test-key
+        principal: tester
+        clearance: restricted
+        roles: []
+      - key: public-key
+        principal: public-tester
+        clearance: public
+        roles: []
+spring:
+  ai:
+    model:
+      chat: none
+      embedding: none
