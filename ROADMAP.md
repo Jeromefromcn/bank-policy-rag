@@ -367,7 +367,7 @@ good**; every later improvement is measured relative to it.
 
 ### Phase 2 · Structure-aware chunking + hybrid retrieval + embedding ablation
 
-- [ ] Structural chunking:
+- [x] Structural chunking:
   - SPM: by numbered paragraph (regex `^\d+(\.\d+)*\s`), number chain written to `sectionPath`
   - Markdown: by heading
   - Parent–child: retrieve small chunks, return the full section

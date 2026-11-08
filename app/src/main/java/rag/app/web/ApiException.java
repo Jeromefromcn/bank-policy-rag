@@ -23,6 +23,11 @@ public class ApiException extends RuntimeException {
         return new ApiException(HttpStatus.BAD_REQUEST, ProblemTypes.UNSUPPORTED_MODE, detail);
     }
 
+    /** One body for "does not exist" and "exists but the caller may not see it". */
+    public static ApiException notFound() {
+        return new ApiException(HttpStatus.NOT_FOUND, ProblemTypes.NOT_FOUND, "No such resource");
+    }
+
     public HttpStatus status() {
         return status;
     }
