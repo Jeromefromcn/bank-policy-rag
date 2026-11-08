@@ -46,6 +46,16 @@ class CorpusLoaderTest {
     }
 
     @Test
+    void parseFailureNamesThePdf() throws Exception {
+        Path root = TestCorpus.create(tmp);
+        Path pdf = rag.core.parse.TestPdfs.write(root.resolve("raw/AB-1.pdf"),
+                java.util.List.of(java.util.List.of("No contents list here.", "1.  Introduction")));
+        TestCorpus.writeManifest(root, rag.core.ids.Hashes.sha256Hex(Files.readAllBytes(pdf)));
+        assertThatThrownBy(() -> new CorpusLoader(root).load()).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("AB-1.pdf").hasMessageContaining("body start");
+    }
+
+    @Test
     void duplicateDocIdFails() throws Exception {
         Path root = TestCorpus.create(tmp);
         Files.writeString(root.resolve("internal/eb-b.md"), TestCorpus.markdown("eb-a", "internal", "internal"));

@@ -28,7 +28,11 @@ public final class CorpusLoader {
         for (Manifest.Module module : Manifest.load(root.resolve("manifest.yaml")).modules()) {
             Path pdf = root.resolve("raw").resolve(module.file());
             verify(pdf, module);
-            docs.add(PdfParser.parse(pdf, module.docId(), module.title(), module.version()));
+            try {
+                docs.add(PdfParser.parse(pdf, module.docId(), module.title(), module.version()));
+            } catch (IllegalStateException e) {
+                throw new IllegalStateException(module.file() + ": " + e.getMessage(), e);
+            }
         }
         for (Path md : CorpusFiles.markdown(root)) {
             docs.add(MarkdownParser.parse(read(md), CorpusFiles.relative(root, md)));
