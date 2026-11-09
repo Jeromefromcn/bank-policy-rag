@@ -19,7 +19,8 @@ public class SearchController {
     @PostMapping("/v1/search")
     SearchResponse search(@RequestBody SearchRequest request, @AuthenticationPrincipal Principal principal) {
         var options = request.validated();
-        return new SearchResponse("q_" + UlidCreator.getMonotonicUlid(),
-                search.search(request.query(), options.topK(), options.mode(), principal));
+        var outcome = search.searchWithDiagnostics(request.query(), options.topK(), options.mode(), principal);
+        return new SearchResponse("q_" + UlidCreator.getMonotonicUlid(), outcome.hits(),
+                new SearchResponse.Diagnostics(outcome.bestVectorSimilarity()));
     }
 }

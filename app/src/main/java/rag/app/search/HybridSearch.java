@@ -39,15 +39,35 @@ public class HybridSearch {
         this.legSize = legSize;
     }
 
+    /**
+     * Hits plus the best raw cosine similarity of the vector leg, taken after the clearance pre-filter and
+     * independent of what fusion kept. Null when the vector leg did not run or returned nothing.
+     */
+    public record SearchOutcome(List<SearchHit> hits, Double bestVectorSimilarity) {}
+
     public List<SearchHit> search(String query, int topK, Mode mode, Principal principal) {
+        return searchWithDiagnostics(query, topK, mode, principal).hits();
+    }
+
+    public SearchOutcome searchWithDiagnostics(String query, int topK, Mode mode, Principal principal) {
         return switch (mode) {
-            case VECTOR -> vector.search(query, topK, principal);
-            case BM25 -> bm25.search(query, topK, principal);
+            case VECTOR -> {
+                List<SearchHit> hits = vector.search(query, topK, principal);
+                yield new SearchOutcome(hits, bestSimilarity(hits));
+            }
+            case BM25 -> new SearchOutcome(bm25.search(query, topK, principal), null);
             case HYBRID -> hybrid(query, topK, principal);
         };
     }
 
-    private List<SearchHit> hybrid(String query, int topK, Principal principal) {
+    private static Double bestSimilarity(List<SearchHit> vectorHits) {
+        if (vectorHits.isEmpty() || !(vectorHits.getFirst().scores().get("similarity") instanceof Number n)) {
+            return null;
+        }
+        return n.doubleValue();
+    }
+
+    private SearchOutcome hybrid(String query, int topK, Principal principal) {
         int size = Math.max(legSize, topK);
         List<SearchHit> vectorHits = vector.search(query, size, principal);
         List<SearchHit> bm25Hits = bm25.search(query, size, principal);
@@ -85,6 +105,6 @@ public class HybridSearch {
             out.add(new SearchHit(base.chunkId(), base.sectionId(), base.docId(), base.docTitle(), base.sectionPath(),
                     base.coveredSections(), base.pages(), base.classification(), r.score(), scores, base.text()));
         }
-        return out;
+        return new SearchOutcome(out, bestSimilarity(vectorHits));
     }
 }

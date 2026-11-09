@@ -144,4 +144,37 @@ class HybridSearchTest {
         assertThatThrownBy(() -> Mode.parse("bm25")).hasMessageContaining("VECTOR");
         assertThatThrownBy(() -> Mode.parse("FUZZY")).hasMessageContaining("HYBRID");
     }
+
+    @Test
+    void bestVectorSimilarityIsVectorLegTopEvenWhenFusionDropsIt() {
+        when(vector.search(eq("q"), anyInt(), any())).thenReturn(List.of(vec("a", 1), vec("b", 2), vec("c", 3)));
+        when(bm25.search(eq("q"), anyInt(), any())).thenReturn(List.of(bm("x", 1), bm("y", 2)));
+
+        var outcome = search.searchWithDiagnostics("q", 1, Mode.HYBRID, P);
+
+        assertThat(outcome.hits()).hasSize(1);
+        assertThat(outcome.bestVectorSimilarity()).isEqualTo(0.89);
+    }
+
+    @Test
+    void bestVectorSimilarityIsNullForBm25Mode() {
+        when(bm25.search(eq("q"), anyInt(), any())).thenReturn(List.of(bm("x", 1)));
+
+        assertThat(search.searchWithDiagnostics("q", 5, Mode.BM25, P).bestVectorSimilarity()).isNull();
+    }
+
+    @Test
+    void bestVectorSimilarityIsNullWhenVectorLegEmpty() {
+        when(vector.search(eq("q"), anyInt(), any())).thenReturn(List.of());
+        when(bm25.search(eq("q"), anyInt(), any())).thenReturn(List.of(bm("x", 1)));
+
+        assertThat(search.searchWithDiagnostics("q", 5, Mode.HYBRID, P).bestVectorSimilarity()).isNull();
+    }
+
+    @Test
+    void vectorModeReportsTopHitSimilarity() {
+        when(vector.search(eq("q"), anyInt(), any())).thenReturn(List.of(vec("a", 1), vec("b", 2)));
+
+        assertThat(search.searchWithDiagnostics("q", 5, Mode.VECTOR, P).bestVectorSimilarity()).isEqualTo(0.89);
+    }
 }

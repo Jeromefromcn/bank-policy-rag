@@ -48,10 +48,8 @@ class AskControllerIT extends IntegrationTest {
         assertThat(r.get("answerId").asString()).startsWith("a_");
         assertThat(r.get("answer").asString()).isEqualTo("Answer [1].");
         JsonNode citations = r.get("citations");
-        assertThat(citations.size()).isEqualTo(5);
-        for (int i = 0; i < 5; i++) {
-            assertThat(citations.get(i).get("ref").asInt()).isEqualTo(i + 1);
-        }
+        assertThat(citations.size()).isEqualTo(1);
+        assertThat(citations.get(0).get("ref").asInt()).isEqualTo(1);
         assertThat(citations.get(0).get("chunkId").asString()).isEqualTo("c-int");
         assertThat(citations.get(0).get("quote").asString()).isEqualTo(QUERY);
         assertThat(r.get("usage").get("promptTokens").asInt()).isEqualTo(100);
@@ -70,14 +68,54 @@ class AskControllerIT extends IntegrationTest {
     }
 
     @Test
-    void zeroHitsSkipsLlm() {
+    void emptyHitsRefuses() {
         admin.delete(admin.aliasInfo("t_ask-chunks").orElseThrow().index());
+        try {
+            JsonNode r = ask(KEY, Map.of("question", QUERY), 200);
+            assertThat(r.get("status").asString()).isEqualTo("REFUSED");
+            assertThat(r.get("refusalReason").asString()).isEqualTo("LOW_RETRIEVAL_SCORE");
+            assertThat(r.get("answer").isNull()).isTrue();
+            assertThat(r.get("citations").size()).isZero();
+            assertThat(r.get("latencyMs").get("generation").asLong()).isZero();
+            assertThat(stub.calls()).isZero();
+        } finally {
+            TestIndex.rebuild(admin, writer, "t_ask", TestIndex.mixed(QUERY));
+        }
+    }
+
+    @Test
+    void noAnswerSentinelRefusesAsLowRetrievalScore() {
+        stub.reply("  NO_ANSWER \n");
         JsonNode r = ask(KEY, Map.of("question", QUERY), 200);
-        assertThat(r.get("status").asString()).isEqualTo("ANSWERED");
-        assertThat(r.get("answer").asString()).isEqualTo("No sources were found for this question.");
+        assertThat(r.get("status").asString()).isEqualTo("REFUSED");
+        assertThat(r.get("refusalReason").asString()).isEqualTo("LOW_RETRIEVAL_SCORE");
         assertThat(r.get("citations").size()).isZero();
-        assertThat(r.get("latencyMs").get("generation").asLong()).isZero();
-        assertThat(stub.calls()).isZero();
+        assertThat(r.get("usage").get("promptTokens").asInt()).isEqualTo(100);
+    }
+
+    @Test
+    void outOfRangeCitationRefusesAsCitationValidationFailed() {
+        stub.reply("A claim [99].");
+        JsonNode r = ask(KEY, Map.of("question", QUERY, "topK", 3), 200);
+        assertThat(r.get("status").asString()).isEqualTo("REFUSED");
+        assertThat(r.get("refusalReason").asString()).isEqualTo("CITATION_VALIDATION_FAILED");
+        assertThat(r.get("answer").isNull()).isTrue();
+    }
+
+    @Test
+    void uncitedParagraphRefuses() {
+        stub.reply("Cited claim [1].\n\nUncited claim.");
+        JsonNode r = ask(KEY, Map.of("question", QUERY), 200);
+        assertThat(r.get("refusalReason").asString()).isEqualTo("CITATION_VALIDATION_FAILED");
+    }
+
+    @Test
+    void returnsOnlyCitedSources() {
+        stub.reply("Second source says so [2].");
+        JsonNode r = ask(KEY, Map.of("question", QUERY, "topK", 3), 200);
+        assertThat(r.get("status").asString()).isEqualTo("ANSWERED");
+        assertThat(r.get("citations").size()).isEqualTo(1);
+        assertThat(r.get("citations").get(0).get("ref").asInt()).isEqualTo(2);
     }
 
     @Test
