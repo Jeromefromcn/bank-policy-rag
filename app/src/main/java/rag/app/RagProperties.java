@@ -13,7 +13,7 @@ public record RagProperties(
         Rerank rerank) {
 
     public RagProperties {
-        ask = ask == null ? new Ask(0.0, 0.5) : ask;
+        ask = ask == null ? new Ask(0.0, 0.5, 0.0) : ask;
         rerank = rerank == null ? new Rerank("http://127.0.0.1:18090", 20, 256, java.time.Duration.ofSeconds(5)) : rerank;
     }
 
@@ -75,8 +75,10 @@ public record RagProperties(
      * @param minSimilarity refusal gate: best vector-leg cosine similarity below this refuses without calling the
      *                      model. {@code 0} (or less) turns the gate off until {@code decisions/03} sets a value
      * @param minOverlap    lexical-overlap flag threshold of the citation validator (soft: never refuses)
+     * @param minRerankProbability refusal gate on the best {@code sigmoid(rerank score)}, applied only when the request
+     *                      asks for rerank. {@code 0} (or less) turns it off until {@code decisions/04} sets a value
      */
-    public record Ask(double minSimilarity, double minOverlap) {}
+    public record Ask(double minSimilarity, double minOverlap, double minRerankProbability) {}
 
     /**
      * Cross-encoder rerank (spec 04 §4).

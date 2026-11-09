@@ -11,7 +11,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.stereotype.Service;
 import rag.app.RagProperties;
-import rag.app.search.HybridSearch;
+import rag.app.search.RetrievalPipeline;
 import rag.app.search.Mode;
 import rag.app.search.SearchHit;
 import rag.app.security.Principal;
@@ -19,7 +19,8 @@ import rag.core.cite.CitationReport;
 import rag.core.cite.CitationValidator;
 
 /**
- * Grounded answer (spec 03): retrieve, refuse below the similarity gate without calling the model, render
+ * Grounded answer (spec 03, spec 04 §4-§5): retrieve (optionally reranked), refuse below the similarity gate or the
+ * rerank gate without calling the model, render
  * {@code answer.v2}, treat {@code NO_ANSWER} as a refusal, validate citations, return only cited sources.
  * The external refusal reason never reveals whether sources were inaccessible or absent (spec 00 §7 rule 2);
  * the true internal cause is logged.
@@ -34,34 +35,41 @@ public class AskService {
 
     private static final Logger LOG = LoggerFactory.getLogger(AskService.class);
 
-    private final HybridSearch retriever;
+    private final RetrievalPipeline retriever;
     private final PromptRenderer renderer;
     private final ChatModel chat;
     private final double minSimilarity;
+    private final double minRerankProbability;
     private final CitationValidator validator;
 
-    public AskService(HybridSearch retriever, PromptRenderer renderer, ChatModel chat, RagProperties props) {
+    public AskService(RetrievalPipeline retriever, PromptRenderer renderer, ChatModel chat, RagProperties props) {
         this.retriever = retriever;
         this.renderer = renderer;
         this.chat = chat;
         this.minSimilarity = props.ask().minSimilarity();
+        this.minRerankProbability = props.ask().minRerankProbability();
         this.validator = new CitationValidator(props.ask().minOverlap());
     }
 
-    public AskResponse ask(String question, int topK, Mode mode, Principal principal) {
+    public AskResponse ask(String question, int topK, Mode mode, boolean rerank, Principal principal) {
         String answerId = "a_" + UlidCreator.getMonotonicUlid();
-        long t0 = System.nanoTime();
-        var outcome = retriever.searchWithDiagnostics(question, topK, mode, principal);
-        long retrievalMs = ms(t0);
+        var outcome = retriever.retrieve(question, topK, mode, rerank, principal);
+        long retrievalMs = outcome.retrievalMs();
+        long rerankMs = outcome.rerankMs();
         List<SearchHit> hits = outcome.hits();
 
         if (hits.isEmpty()) {
-            return refused(answerId, LOW_RETRIEVAL_SCORE, "no accessible hits", null, retrievalMs, 0);
+            return refused(answerId, LOW_RETRIEVAL_SCORE, "no accessible hits", null, retrievalMs, rerankMs, 0);
         }
         Double best = outcome.bestVectorSimilarity();
         if (minSimilarity > 0 && best != null && best < minSimilarity) {
             return refused(answerId, LOW_RETRIEVAL_SCORE, "similarity " + best + " below gate " + minSimilarity, null,
-                    retrievalMs, 0);
+                    retrievalMs, rerankMs, 0);
+        }
+        Double bestRerank = outcome.bestRerankProbability();
+        if (rerank && minRerankProbability > 0 && bestRerank != null && bestRerank < minRerankProbability) {
+            return refused(answerId, LOW_RETRIEVAL_SCORE, "rerank probability " + bestRerank + " below gate "
+                    + minRerankProbability, null, retrievalMs, rerankMs, 0);
         }
 
         long t1 = System.nanoTime();
@@ -80,12 +88,12 @@ public class AskService {
 
         if (answer.isEmpty() || PromptRenderer.isNoAnswer(answer)) {
             return refused(answerId, LOW_RETRIEVAL_SCORE, "model declined (NO_ANSWER or empty)", responseUsage, retrievalMs,
-                    generationMs);
+                    rerankMs, generationMs);
         }
         CitationReport report = validator.validate(answer, hits.stream().map(SearchHit::text).toList());
         if (report.hardFail()) {
             return refused(answerId, CITATION_VALIDATION_FAILED, "range=" + report.rangeOk() + " coverage=" + report.coverageOk(),
-                    responseUsage, retrievalMs, generationMs);
+                    responseUsage, retrievalMs, rerankMs, generationMs);
         }
         long flagged = report.sentences().stream().filter(CitationReport.SentenceCheck::flagged).count();
         if (flagged > 0) {
@@ -99,14 +107,14 @@ public class AskService {
             citations.add(new AskResponse.Citation(ref, h.chunkId(), h.docId(), h.sectionPath(), h.pages(), quote));
         }
         return new AskResponse(answerId, "ANSWERED", null, answer, citations, responseUsage,
-                new AskResponse.Latency(retrievalMs, 0, generationMs));
+                new AskResponse.Latency(retrievalMs, rerankMs, generationMs));
     }
 
     private static AskResponse refused(String answerId, String reason, String internalCause, AskResponse.Usage usage,
-            long retrievalMs, long generationMs) {
+            long retrievalMs, long rerankMs, long generationMs) {
         LOG.info("answer {} refused ({}): {}", answerId, reason, internalCause);
         return new AskResponse(answerId, "REFUSED", reason, null, List.of(), usage == null ? new AskResponse.Usage(null, null) : usage,
-                new AskResponse.Latency(retrievalMs, 0, generationMs));
+                new AskResponse.Latency(retrievalMs, rerankMs, generationMs));
     }
 
     private static long ms(long t0) {

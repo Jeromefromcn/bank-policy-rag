@@ -28,9 +28,6 @@ public class AskController {
             throw ApiException.invalid("conversationId is not supported yet");
         }
         var options = SearchRequest.validateRetrievalOptions(request.topK(), request.mode(), request.rerank());
-        if (options.rerank()) {
-            throw ApiException.unsupported("rerank is not supported on /v1/ask yet");
-        }
-        return service.ask(request.question(), options.topK(), options.mode(), principal);
+        return service.ask(request.question(), options.topK(), options.mode(), options.rerank(), principal);
     }
 }

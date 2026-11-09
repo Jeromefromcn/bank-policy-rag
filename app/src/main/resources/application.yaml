@@ -57,6 +57,8 @@ rag:
     # 0 = gate off. The value comes from decisions/03 (spec 03 §3.2).
     min-similarity: ${RAG_ASK_MIN_SIMILARITY:0.0}
     min-overlap: 0.5
+    # Rerank-score gate, only with rerank: true. 0 = off until decisions/04 (spec 04 §5).
+    min-rerank-probability: ${RAG_ASK_MIN_RERANK_PROBABILITY:0.0}
 
 spring:
   application:
