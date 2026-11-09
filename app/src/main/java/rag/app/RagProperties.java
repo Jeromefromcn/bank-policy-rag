@@ -10,11 +10,12 @@ import rag.core.model.Clearance;
 @ConfigurationProperties("rag")
 public record RagProperties(
         String envPrefix, Security security, Embedding embedding, Retrieval retrieval, Chunking chunking, Corpus corpus, Ask ask,
-        Rerank rerank) {
+        Rerank rerank, Conversation conversation) {
 
     public RagProperties {
         ask = ask == null ? new Ask(0.0, 0.5, 0.0) : ask;
         rerank = rerank == null ? new Rerank("http://127.0.0.1:18090", 20, 256, java.time.Duration.ofSeconds(5)) : rerank;
+        conversation = conversation == null ? new Conversation(java.time.Duration.ofMinutes(30), 5, 1000) : conversation;
     }
 
 
@@ -89,4 +90,13 @@ public record RagProperties(
      * @param timeout           connect and read timeout of one reranker call
      */
     public record Rerank(String url, int candidates, int maxPassageTokens, java.time.Duration timeout) {}
+
+    /**
+     * In-memory conversations for multi-turn {@code /v1/ask} (spec 04 §6.1).
+     *
+     * @param ttl              idle time after which a conversation is forgotten
+     * @param maxTurns         turns kept per conversation (oldest dropped)
+     * @param maxConversations conversations kept (least recently used evicted)
+     */
+    public record Conversation(java.time.Duration ttl, int maxTurns, int maxConversations) {}
 }

@@ -59,6 +59,10 @@ rag:
     min-overlap: 0.5
     # Rerank-score gate, only with rerank: true. 0 = off until decisions/04 (spec 04 §5).
     min-rerank-probability: ${RAG_ASK_MIN_RERANK_PROBABILITY:0.0}
+  conversation:
+    ttl: 30m
+    max-turns: 5
+    max-conversations: 1000
 
 spring:
   application:
