@@ -101,4 +101,15 @@ class SweepTest {
         assertThat(at(t, 0.0).falseRefusalRate()).isEqualTo(0.0);
         assertThat(at(t, 0.01).falseRefusalRate()).isEqualTo(1.0);
     }
+
+    @Test
+    void rerankSignalUsesRerankProbability() throws Exception {
+        try (var stub = new StubServer()) {
+            stub.searchBody = """
+                    {"queryId":"q_1","hits":[],"diagnostics":{"bestVectorSimilarity":0.8,"bestRerankProbability":0.3}}""";
+            var obs = Sweep.collect(List.of(item("f1", "factual", Clearance.PUBLIC, "dev")), KEYS, stub.base(), "HYBRID", true);
+            assertThat(obs).singleElement().satisfies(o -> assertThat(o.bestSimilarity()).isEqualTo(0.3));
+            assertThat(stub.requests.getFirst().body()).contains("\"rerank\":true");
+        }
+    }
 }

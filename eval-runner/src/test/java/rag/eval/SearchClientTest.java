@@ -57,4 +57,28 @@ class SearchClientTest {
             assertThat(JsonMapper.builder().build().readTree(stub.requests.getFirst().body()).get("mode").asString()).isEqualTo("BM25");
         }
     }
+
+    @Test
+    void sendsRerankFlagAndParsesDiagnostics() throws Exception {
+        try (var stub = new StubServer()) {
+            stub.searchBody = """
+                    {"queryId":"q_1","hits":[{"chunkId":"c1","docId":"eb-a","sectionPath":["1"],"coveredSections":["1"],"text":"t"}],
+                     "diagnostics":{"bestVectorSimilarity":0.8,"bestRerankProbability":0.97,"latencyMs":{"retrieval":12,"rerank":340}}}""";
+            var r = new SearchClient(stub.base(), "k", "HYBRID", true).search("q", 10);
+            assertThat(JsonMapper.builder().build().readTree(stub.requests.getFirst().body()).get("rerank").asBoolean()).isTrue();
+            assertThat(r.bestRerankProbability()).isEqualTo(0.97);
+            assertThat(r.serverRetrievalMs()).isEqualTo(12L);
+            assertThat(r.serverRerankMs()).isEqualTo(340L);
+        }
+    }
+
+    @Test
+    void rerankDefaultsToFalseAndMissingDiagnosticsAreNull() throws Exception {
+        try (var stub = new StubServer()) {
+            var r = new SearchClient(stub.base(), "k", "HYBRID").search("q", 10);
+            assertThat(JsonMapper.builder().build().readTree(stub.requests.getFirst().body()).get("rerank").asBoolean()).isFalse();
+            assertThat(r.bestRerankProbability()).isNull();
+            assertThat(r.serverRerankMs()).isNull();
+        }
+    }
 }

@@ -43,10 +43,12 @@ public final class EvalRunner {
         Map<String, String> opts = new HashMap<>(Map.of("split", "all", "golden", "eval/golden-set.yaml", "corpus", "corpus",
                 "out", "eval/runs", "mode", "HYBRID", "judge-model", DEFAULT_JUDGE_MODEL, "judge-url", "https://api.deepseek.com",
                 "judge-cache", "eval/.judge-cache", "min-overlap", "0.5"));
+        opts.put("rerank", "false");
+        opts.put("repeat", "1");
         for (String a : args) {
             int eq = a.indexOf('=');
             if (!a.startsWith("--") || eq < 0) {
-                out.println("usage: --base-url=URL [--split=all|dev|test] [--mode=VECTOR|BM25|HYBRID] [--sweep=true] [--overlap-sweep=RUN_DIR] [--export-labels=RUN_DIR [--seed=N] [--n=20]] [--agreement=RUN_DIR [--labels=FILE]] [--generation=true --judge-model=… --judge-url=… --judge-cache=… --min-overlap=…] [--golden=…] [--corpus=…] [--out=…]");
+                out.println("usage: --base-url=URL [--split=all|dev|test] [--mode=VECTOR|BM25|HYBRID] [--rerank=true [--reranker-model=ID]] [--repeat=N] [--sweep=true] [--overlap-sweep=RUN_DIR] [--export-labels=RUN_DIR [--seed=N] [--n=20]] [--agreement=RUN_DIR [--labels=FILE]] [--generation=true --judge-model=… --judge-url=… --judge-cache=… --min-overlap=…] [--golden=…] [--corpus=…] [--out=…]");
                 return 2;
             }
             opts.put(a.substring(2, eq), a.substring(eq + 1));
@@ -85,11 +87,26 @@ public final class EvalRunner {
             out.println("error: --mode must be VECTOR, BM25 or HYBRID");
             return 2;
         }
+        if (!List.of("true", "false").contains(opts.get("rerank"))) {
+            out.println("error: --rerank must be true or false");
+            return 2;
+        }
+        boolean rerank = opts.get("rerank").equals("true");
+        int repeat;
+        try {
+            repeat = Integer.parseInt(opts.get("repeat"));
+        } catch (NumberFormatException e) {
+            repeat = 0;
+        }
+        if (repeat < 1) {
+            out.println("error: --repeat must be a positive integer");
+            return 2;
+        }
 
         try {
             List<GoldenItem> items = GoldenSet.load(Path.of(opts.get("golden")), CorpusLoader.knownDocIds(Path.of(opts.get("corpus"))));
-            var client = new SearchClient(URI.create(opts.get("base-url")), key, mode);
-            Map<String, String> info = client.info();
+            var client = new SearchClient(URI.create(opts.get("base-url")), key, mode, rerank);
+            Map<String, String> info = new java.util.TreeMap<>(client.info());
             for (String required : REQUIRED_INFO) {
                 if (info.getOrDefault(required, "").isBlank()) {
                     // No live index behind the alias (wrong RAG_ENV_PREFIX, or a rebuild in progress):
@@ -99,8 +116,15 @@ public final class EvalRunner {
                 }
             }
 
+            if (rerank) {
+                info.put("rerank", "true");
+                info.put("rerankerModel", opts.getOrDefault("reranker-model", "unrecorded"));
+            }
+            if (repeat > 1) {
+                info.put("repeat", Integer.toString(repeat));
+            }
             if (opts.getOrDefault("sweep", "false").equals("true")) {
-                var observations = Sweep.collect(items, KeySet.fromEnv(env), URI.create(opts.get("base-url")), mode);
+                var observations = Sweep.collect(items, KeySet.fromEnv(env), URI.create(opts.get("base-url")), mode, rerank);
                 Path dir = Path.of(opts.get("out")).resolve(RUN_ID.format(Instant.now()) + "-sweep");
                 Sweep.write(dir, RunMetadata.collect(opts.get("base-url"), info, "dev", mode, 0), Sweep.table(observations));
                 out.println("wrote " + dir.resolve("sweep.md") + " (" + observations.size() + " observations)");
@@ -133,8 +157,13 @@ public final class EvalRunner {
                     skipped++;
                     continue;
                 }
-                var res = client.search(item.question(), TOP_K);
-                results.add(new ItemResult(item, RetrievalMetrics.score(item.expectedSources(), res.hits()), res.latencyMs()));
+                var first = client.search(item.question(), TOP_K);
+                List<ItemResult.Latency> latencies = new ArrayList<>();
+                latencies.add(latency(first));
+                for (int r = 1; r < repeat; r++) {
+                    latencies.add(latency(client.search(item.question(), TOP_K)));
+                }
+                results.add(new ItemResult(item, RetrievalMetrics.score(item.expectedSources(), first.hits()), latencies));
             }
 
             RunMetadata meta = RunMetadata.collect(opts.get("base-url"), info, split, mode, skipped);
@@ -146,6 +175,10 @@ public final class EvalRunner {
             out.println("error: " + e.getMessage());
             return 1;
         }
+    }
+
+    private static ItemResult.Latency latency(SearchClient.SearchResult r) {
+        return new ItemResult.Latency(r.latencyMs(), r.serverRetrievalMs(), r.serverRerankMs());
     }
 
     /** {@code --export-labels=RUN_DIR} writes the blind sheet; {@code --agreement=RUN_DIR} scores the author's labels. */

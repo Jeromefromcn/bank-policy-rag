@@ -42,15 +42,47 @@ public class ReportWriter {
         json.put("aggregates", aggregates);
         json.put("latencyMs", Map.of("p50", latencies.isEmpty() ? 0 : percentile(latencies, 50),
                 "p95", latencies.isEmpty() ? 0 : percentile(latencies, 95)));
+        json.put("latencyStages", latencyStages(items));
         json.put("items", items.stream().map(i -> Map.of("id", i.item().id(), "category", i.item().category(),
                 "split", i.item().split(), "scores", i.scores(), "latencyMs", i.latencyMs())).toList());
         try {
             Files.createDirectories(dir);
             Files.writeString(dir.resolve("report.json"), JSON.writeValueAsString(json));
-            Files.writeString(dir.resolve("report.md"), markdown(meta, aggregates, latencies, items));
+            Files.writeString(dir.resolve("report.md"), markdown(meta, aggregates, latencyStages(items), items));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /** Percentiles over a set of latencies; {@code n} is how many values they cover. */
+    public record Percentiles(int n, long p50, long p95) {}
+
+    /** Every repetition of every item ({@code all}) and the first repetition only ({@code cold}). */
+    public record StageLatency(Percentiles all, Percentiles cold) {}
+
+    /**
+     * Latency per stage (spec 04 §7.1): client total, server retrieval, server rerank and their sum. A server stage
+     * appears only when every repetition reported it.
+     */
+    static Map<String, StageLatency> latencyStages(List<ItemResult> items) {
+        Map<String, java.util.function.Function<ItemResult.Latency, Long>> stages = new LinkedHashMap<>();
+        stages.put("total", ItemResult.Latency::totalMs);
+        stages.put("retrieval", ItemResult.Latency::retrievalMs);
+        stages.put("rerank", ItemResult.Latency::rerankMs);
+        stages.put("retrievalPlusRerank", l -> l.retrievalMs() == null || l.rerankMs() == null ? null : l.retrievalMs() + l.rerankMs());
+        Map<String, StageLatency> out = new LinkedHashMap<>();
+        stages.forEach((name, f) -> {
+            List<Long> all = items.stream().flatMap(i -> i.repetitions().stream()).map(f).toList();
+            List<Long> cold = items.stream().map(i -> f.apply(i.repetitions().getFirst())).toList();
+            if (!all.isEmpty() && all.stream().noneMatch(java.util.Objects::isNull)) {
+                out.put(name, new StageLatency(percentiles(all), percentiles(cold)));
+            }
+        });
+        return out;
+    }
+
+    private static Percentiles percentiles(List<Long> values) {
+        return new Percentiles(values.size(), percentile(values, 50), percentile(values, 95));
     }
 
     static List<Aggregate> aggregate(List<ItemResult> items) {
@@ -81,7 +113,7 @@ public class ReportWriter {
         return sorted.get(Math.max(0, rank - 1));
     }
 
-    private static String markdown(RunMetadata meta, Map<String, List<Aggregate>> aggregates, List<Long> latencies,
+    private static String markdown(RunMetadata meta, Map<String, List<Aggregate>> aggregates, Map<String, StageLatency> stages,
             List<ItemResult> items) {
         StringBuilder md = new StringBuilder("# Retrieval eval report\n\n");
         md.append("| Key | Value |\n|---|---|\n");
@@ -106,10 +138,13 @@ public class ReportWriter {
             }
         });
 
-        md.append("\n## Latency (client-side, /v1/search)\n\n");
-        if (!latencies.isEmpty()) {
-            md.append("p50 ").append(percentile(latencies, 50)).append(" ms, p95 ").append(percentile(latencies, 95)).append(" ms\n");
-        }
+        md.append("\n## Latency (ms; all repetitions, and the first repetition alone as cold)\n\n");
+        md.append("| Stage | n | p50 | p95 | cold n | cold p50 | cold p95 |\n|---|---|---|---|---|---|---|\n");
+        Map<String, String> labels = Map.of("total", "total (client, /v1/search)", "retrieval", "retrieval (server)",
+                "rerank", "rerank (server)", "retrievalPlusRerank", "retrieval + rerank (server)");
+        stages.forEach((name, st) -> md.append("| ").append(labels.get(name)).append(" | ").append(st.all().n()).append(" | ")
+                .append(st.all().p50()).append(" | ").append(st.all().p95()).append(" | ").append(st.cold().n()).append(" | ")
+                .append(st.cold().p50()).append(" | ").append(st.cold().p95()).append(" |\n"));
 
         md.append("\n## Items\n\n| Id | Category | Split | First match rank | Recall@5 |\n|---|---|---|---|---|\n");
         items.stream().sorted(Comparator.comparing(i -> i.item().id())).forEach(i -> md.append("| ").append(i.item().id())

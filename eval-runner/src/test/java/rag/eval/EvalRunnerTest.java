@@ -254,4 +254,45 @@ class EvalRunnerTest {
             assertThat(g1.get("sentences").get(0).get("verdict").asString()).isEqualTo("ERROR");
         }
     }
+
+    Path onlyRunDir() throws Exception {
+        try (var s = Files.list(tmp.resolve("runs"))) {
+            return s.findFirst().orElseThrow();
+        }
+    }
+
+    @Test
+    void repeatScoresFirstRepetitionOnly() throws Exception {
+        try (var stub = new StubServer()) {
+            var calls = new java.util.concurrent.atomic.AtomicInteger();
+            stub.searchResponder = body -> calls.getAndIncrement() == 0 ? """
+                    {"queryId":"q","hits":[{"chunkId":"c1","docId":"eb-a","sectionPath":["1"],"coveredSections":["1"],"text":"t"}],"diagnostics":{}}"""
+                    : """
+                    {"queryId":"q","hits":[{"chunkId":"c9","docId":"eb-z","sectionPath":["9"],"coveredSections":["9"],"text":"t"}],"diagnostics":{}}""";
+            assertThat(run(stub, Map.of("RAG_KEY_DEV", "k"), "--split=dev", "--repeat=3")).isZero();
+            assertThat(stub.searches()).isEqualTo(3);
+            var json = tools.jackson.databind.json.JsonMapper.builder().build().readTree(Files.readString(onlyRunDir().resolve("report.json")));
+            assertThat(json.get("items").get(0).get("scores").get("recall5").asDouble()).isEqualTo(1.0);
+            assertThat(json.get("latencyStages").get("total").get("all").get("n").asInt()).isEqualTo(3);
+        }
+    }
+
+    @Test
+    void rerankFlagIsSentAndRecorded() throws Exception {
+        try (var stub = new StubServer()) {
+            assertThat(run(stub, Map.of("RAG_KEY_DEV", "k"), "--split=dev", "--rerank=true", "--reranker-model=cross-encoder/x")).isZero();
+            assertThat(stub.requests.stream().filter(r -> r.path().equals("/v1/search")))
+                    .allSatisfy(r -> assertThat(r.body()).contains("\"rerank\":true"));
+            String md = Files.readString(onlyRunDir().resolve("report.md"));
+            assertThat(md).contains("| rerank | true |").contains("| rerankerModel | cross-encoder/x |");
+        }
+    }
+
+    @Test
+    void invalidRepeatExits2() throws Exception {
+        try (var stub = new StubServer()) {
+            assertThat(run(stub, Map.of("RAG_KEY_DEV", "k"), "--repeat=0")).isEqualTo(2);
+            assertThat(stub.searches()).isZero();
+        }
+    }
 }

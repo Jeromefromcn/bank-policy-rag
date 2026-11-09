@@ -15,7 +15,8 @@ import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Threshold sweep for the refusal gate (spec 03 §3.2). Retrieval only: no tokens. Uses {@code dev} items only and the
+ * Threshold sweep for the refusal gate (spec 03 §3.2) or, with rerank, the rerank-score gate (spec 04 §5); the
+ * observation's signal is then {@code bestRerankProbability}. Retrieval only: no tokens. Uses {@code dev} items only and the
  * same keys the generation run uses, so false-refusal numbers describe the conditions the gate will run under.
  */
 public final class Sweep {
@@ -35,6 +36,11 @@ public final class Sweep {
     private Sweep() {}
 
     public static List<Observation> collect(List<GoldenItem> items, KeySet keys, java.net.URI base, String mode) {
+        return collect(items, keys, base, mode, false);
+    }
+
+    /** With {@code rerank}, each observation's signal is the best rerank probability instead of vector similarity. */
+    public static List<Observation> collect(List<GoldenItem> items, KeySet keys, java.net.URI base, String mode, boolean rerank) {
         keys.require(KeySet.needed(items, "dev"));
         List<Observation> out = new ArrayList<>();
         for (GoldenItem item : items) {
@@ -42,20 +48,20 @@ public final class Sweep {
                 continue;
             }
             switch (item.category()) {
-                case "unanswerable" -> out.add(observe(item, Kind.UNANSWERABLE, base, keys.forClearance(Clearance.RESTRICTED), mode));
+                case "unanswerable" -> out.add(observe(item, Kind.UNANSWERABLE, base, keys.forClearance(Clearance.RESTRICTED), mode, rerank));
                 case "restricted" -> {
-                    out.add(observe(item, Kind.ANSWERABLE, base, keys.forClearance(item.minClearance()), mode));
-                    out.add(observe(item, Kind.BELOW_CLEARANCE, base, keys.forClearance(KeySet.below(item.minClearance())), mode));
+                    out.add(observe(item, Kind.ANSWERABLE, base, keys.forClearance(item.minClearance()), mode, rerank));
+                    out.add(observe(item, Kind.BELOW_CLEARANCE, base, keys.forClearance(KeySet.below(item.minClearance())), mode, rerank));
                 }
-                default -> out.add(observe(item, Kind.ANSWERABLE, base, keys.forClearance(item.minClearance()), mode));
+                default -> out.add(observe(item, Kind.ANSWERABLE, base, keys.forClearance(item.minClearance()), mode, rerank));
             }
         }
         return out;
     }
 
-    private static Observation observe(GoldenItem item, Kind kind, java.net.URI base, String key, String mode) {
-        var res = new SearchClient(base, key, mode).search(item.question(), EvalRunner.TOP_K);
-        return new Observation(item.id(), item.category(), kind, res.bestVectorSimilarity());
+    private static Observation observe(GoldenItem item, Kind kind, java.net.URI base, String key, String mode, boolean rerank) {
+        var res = new SearchClient(base, key, mode, rerank).search(item.question(), EvalRunner.TOP_K);
+        return new Observation(item.id(), item.category(), kind, rerank ? res.bestRerankProbability() : res.bestVectorSimilarity());
     }
 
     public static Table table(List<Observation> observations) {
@@ -95,11 +101,12 @@ public final class Sweep {
         Map<String, Object> json = new LinkedHashMap<>();
         json.put("metadata", meta);
         json.put("table", table);
-        StringBuilder md = new StringBuilder("# Refusal threshold sweep (dev)\n\n");
+        String signal = "true".equals(meta.info().get("rerank")) ? "best rerank probability" : "best vector similarity";
+        StringBuilder md = new StringBuilder("# Refusal threshold sweep (dev)\n\n- Signal: " + signal + "\n");
         md.append("- Commit: ").append(meta.gitCommit()).append(" (dirty: ").append(meta.gitDirty()).append(")\n");
         md.append("- Index: ").append(meta.info()).append("\n- Mode: ").append(meta.mode()).append("\n");
         md.append("- n answerable ").append(table.nAnswerable()).append(", unanswerable ").append(table.nUnanswerable())
-                .append(", restricted below clearance ").append(table.nBelowClearance()).append(", no similarity signal ")
+                .append(", restricted below clearance ").append(table.nBelowClearance()).append(", no signal ")
                 .append(table.noSignal()).append("\n- Answerable by category: ").append(table.nByCategory()).append("\n\n");
         md.append("| threshold | unanswerable refused | restricted refused | false refusal | false refusal by category |\n|---|---|---|---|---|\n");
         for (Row r : table.rows()) {

@@ -57,4 +57,31 @@ class ReportWriterTest {
         assertThat(ReportWriter.percentile(latencies, 95)).isEqualTo(100);
         assertThat(ReportWriter.percentile(List.of(7L), 95)).isEqualTo(7);
     }
+
+    @Test
+    void reportsLatencyOverAllRepetitionsAndColdRun() throws Exception {
+        var items = List.of(
+                new ItemResult(item("g1", "factual", "dev"), new ItemScores(1, 1, 1, 1, 1), List.of(
+                        new ItemResult.Latency(10, 2L, 5L), new ItemResult.Latency(20, 2L, 15L), new ItemResult.Latency(30, 2L, 25L))),
+                new ItemResult(item("g2", "factual", "dev"), new ItemScores(1, 1, 1, 1, 1), List.of(
+                        new ItemResult.Latency(40, 3L, 35L), new ItemResult.Latency(50, 3L, 45L), new ItemResult.Latency(60, 3L, 55L))));
+        new ReportWriter().write(dir, meta(), items);
+        var json = tools.jackson.databind.json.JsonMapper.builder().build().readTree(Files.readString(dir.resolve("report.json")));
+        var stages = json.get("latencyStages");
+        assertThat(stages.get("total").get("all").get("n").asInt()).isEqualTo(6);
+        assertThat(stages.get("total").get("all").get("p95").asLong()).isEqualTo(60);
+        assertThat(stages.get("total").get("cold").get("n").asInt()).isEqualTo(2);
+        assertThat(stages.get("total").get("cold").get("p95").asLong()).isEqualTo(40);
+        assertThat(stages.get("rerank").get("all").get("p50").asLong()).isEqualTo(25);
+        assertThat(stages.get("retrievalPlusRerank").get("all").get("p95").asLong()).isEqualTo(58);
+        assertThat(Files.readString(dir.resolve("report.md"))).contains("| retrieval + rerank (server) |").contains("cold");
+    }
+
+    @Test
+    void stagesWithoutServerTimingsAreOmitted() throws Exception {
+        new ReportWriter().write(dir, meta(), List.of(new ItemResult(item("g1", "factual", "dev"), new ItemScores(1, 1, 1, 1, 1), 7)));
+        var json = tools.jackson.databind.json.JsonMapper.builder().build().readTree(Files.readString(dir.resolve("report.json")));
+        assertThat(json.get("latencyStages").has("rerank")).isFalse();
+        assertThat(json.get("latencyStages").get("total").get("all").get("p50").asLong()).isEqualTo(7);
+    }
 }
