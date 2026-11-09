@@ -14,6 +14,8 @@ import rag.core.corpus.CorpusLoader;
 import rag.core.eval.GoldenItem;
 import rag.core.eval.GoldenSet;
 import rag.core.eval.RetrievalMetrics;
+import rag.eval.judge.JudgeCache;
+import rag.eval.judge.JudgeClient;
 
 /**
  * Eval runner: retrieval metrics only (spec 01 §5); {@code --mode} selects the search mode (spec 02 §7).
@@ -25,6 +27,9 @@ import rag.core.eval.RetrievalMetrics;
 public final class EvalRunner {
 
     static final int TOP_K = 10;
+    /** Sources given to the model by /v1/ask during generation evals (the API default). */
+    static final int ASK_TOP_K = 5;
+    static final String DEFAULT_JUDGE_MODEL = "deepseek-v4-pro";
     static final List<String> REQUIRED_INFO = List.of("corpusVersion", "chunkerVersion", "embeddingModel");
     private static final DateTimeFormatter RUN_ID = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'").withZone(ZoneOffset.UTC);
 
@@ -36,14 +41,21 @@ public final class EvalRunner {
 
     static int run(String[] args, Map<String, String> env, PrintStream out) {
         Map<String, String> opts = new HashMap<>(Map.of("split", "all", "golden", "eval/golden-set.yaml", "corpus", "corpus",
-                "out", "eval/runs", "mode", "HYBRID"));
+                "out", "eval/runs", "mode", "HYBRID", "judge-model", DEFAULT_JUDGE_MODEL, "judge-url", "https://api.deepseek.com",
+                "judge-cache", "eval/.judge-cache", "min-overlap", "0.5"));
         for (String a : args) {
             int eq = a.indexOf('=');
             if (!a.startsWith("--") || eq < 0) {
-                out.println("usage: --base-url=URL [--split=all|dev|test] [--mode=VECTOR|BM25|HYBRID] [--sweep=true] [--golden=…] [--corpus=…] [--out=…]");
+                out.println("usage: --base-url=URL [--split=all|dev|test] [--mode=VECTOR|BM25|HYBRID] [--sweep=true] [--generation=true --judge-model=… --judge-url=… --judge-cache=… --min-overlap=…] [--golden=…] [--corpus=…] [--out=…]");
                 return 2;
             }
             opts.put(a.substring(2, eq), a.substring(eq + 1));
+        }
+        boolean generation = opts.getOrDefault("generation", "false").equals("true");
+        String judgeKey = env.get("DEEPSEEK_API_KEY");
+        if (generation && (judgeKey == null || judgeKey.isBlank())) {
+            out.println("error: --generation needs the DEEPSEEK_API_KEY environment variable");
+            return 2;
         }
         String key = env.get("RAG_KEY_DEV");
         if (!opts.containsKey("base-url") || key == null || key.isBlank()) {
@@ -79,6 +91,22 @@ public final class EvalRunner {
                 Path dir = Path.of(opts.get("out")).resolve(RUN_ID.format(Instant.now()) + "-sweep");
                 Sweep.write(dir, RunMetadata.collect(opts.get("base-url"), info, "dev", mode, 0), Sweep.table(observations));
                 out.println("wrote " + dir.resolve("sweep.md") + " (" + observations.size() + " observations)");
+                return 0;
+            }
+
+            if (generation) {
+                var judge = new JudgeClient(URI.create(opts.get("judge-url")), judgeKey, opts.get("judge-model"),
+                        new JudgeCache(Path.of(opts.get("judge-cache"))));
+                var cfg = new GenerationRun.Config(URI.create(opts.get("base-url")), mode, ASK_TOP_K, Double.parseDouble(opts.get("min-overlap")));
+                var outcomes = GenerationRun.run(items, split, KeySet.fromEnv(env), judge, cfg);
+                Map<String, String> reportInfo = new java.util.TreeMap<>(info);
+                reportInfo.put("judgeModel", judge.model());
+                reportInfo.put("judgePrompts", JudgeClient.POINT_PROMPT + "," + JudgeClient.CITATION_PROMPT);
+                reportInfo.put("minOverlap", opts.get("min-overlap"));
+                Path dir = Path.of(opts.get("out")).resolve(RUN_ID.format(Instant.now()) + "-generation");
+                GenerationReport.write(dir, RunMetadata.collect(opts.get("base-url"), reportInfo, split, mode, 0), outcomes,
+                        GenerationMetrics.compute(outcomes));
+                out.println("wrote " + dir.resolve("report.md") + " (" + outcomes.size() + " calls)");
                 return 0;
             }
 

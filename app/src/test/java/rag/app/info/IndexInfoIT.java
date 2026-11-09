@@ -14,7 +14,8 @@ import rag.app.support.TestIndex;
 import tools.jackson.databind.json.JsonMapper;
 
 /** An ablation run points the app at one physical index; /actuator/info must describe that index, not the alias. */
-@TestPropertySource(properties = {"rag.env-prefix=t_info", "rag.retrieval.chunks-index=t_info-chunks-fake8-fixed512-v1"})
+@TestPropertySource(properties = {"rag.env-prefix=t_info", "rag.retrieval.chunks-index=t_info-chunks-fake8-fixed512-v1",
+        "rag.ask.min-similarity=0.42", "spring.ai.deepseek.chat.options.model=test-gen-model"})
 class IndexInfoIT extends IntegrationTest {
 
     @Autowired ChunkIndexAdmin admin;
@@ -31,5 +32,14 @@ class IndexInfoIT extends IntegrationTest {
         var rag = JsonMapper.builder().build().readTree(r.body()).get("rag");
         assertThat(rag.get("index").asString()).isEqualTo("t_info-chunks-fake8-fixed512-v1");
         assertThat(rag.get("chunkerVersion").asString()).isEqualTo("fixed-512-64-cl100k");
+    }
+
+    @Test
+    void describesGenerationSettingsSoReportsRecordThem() {
+        var r = Http.get(port, "/actuator/info", KEY);
+        var rag = JsonMapper.builder().build().readTree(r.body()).get("rag");
+        assertThat(rag.get("generationModel").asString()).isEqualTo("test-gen-model");
+        assertThat(rag.get("answerPrompt").asString()).isEqualTo("answer.v2");
+        assertThat(rag.get("minSimilarity").asString()).isEqualTo("0.42");
     }
 }

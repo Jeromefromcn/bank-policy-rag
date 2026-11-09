@@ -141,4 +141,87 @@ class EvalRunnerTest {
             }
         }
     }
+
+    static final String GEN_GOLDEN = """
+            - id: g1
+              question: "Question one?"
+              category: factual
+              expectedSources: [{docId: eb-a, section: "1"}]
+              expectedPoints: ["p1", "p2"]
+              minClearance: internal
+              split: dev
+            - id: g2
+              question: "Unanswerable?"
+              category: unanswerable
+              expectedSources: []
+              expectedPoints: []
+              minClearance: public
+              split: dev
+            - id: g3
+              question: "Restricted?"
+              category: restricted
+              expectedSources: [{docId: eb-a, section: "1"}]
+              expectedPoints: ["p3"]
+              minClearance: internal
+              split: dev
+            """;
+
+    static final Map<String, String> GEN_ENV = Map.of("RAG_KEY_DEV", "k-res", "RAG_KEY_INTERNAL", "k-int", "RAG_KEY_PUBLIC", "k-pub",
+            "DEEPSEEK_API_KEY", "judge-key");
+
+    /** Judge stub: "yes" for every point or item in the INPUT section of the prompt. */
+    static String allYes(String requestBody) {
+        var mapper = tools.jackson.databind.json.JsonMapper.builder().build();
+        String content = mapper.readTree(requestBody).get("messages").get(0).get("content").asString();
+        var input = mapper.readTree(content.substring(content.indexOf("INPUT:\n") + "INPUT:\n".length()));
+        int n = input.has("points") ? input.get("points").size() : input.get("items").size();
+        return StubServer.judgeContent(mapper.writeValueAsString(Map.of("verdicts", java.util.Collections.nCopies(n, "yes"))));
+    }
+
+    Path runGeneration(StubServer stub) throws Exception {
+        Path corpus = TestCorpus.create(tmp);
+        Path golden = Files.writeString(tmp.resolve("golden.yaml"), GEN_GOLDEN);
+        stub.judgeResponder = EvalRunnerTest::allYes;
+        stub.askBody = stub.askBody.replace("An answer [1].", "DISTINCTIVE_ANSWER_TEXT [1].");
+        stub.searchBody = stub.searchBody.replace("\"text\":\"t\"", "\"text\":\"DISTINCTIVE_SOURCE_TEXT\"");
+        var out = new ByteArrayOutputStream();
+        int code = EvalRunner.run(new String[] {"--base-url=" + stub.base(), "--golden=" + golden, "--corpus=" + corpus,
+                "--out=" + tmp.resolve("runs"), "--generation=true", "--split=dev", "--judge-url=" + stub.base(),
+                "--judge-cache=" + tmp.resolve("cache")}, GEN_ENV, new PrintStream(out));
+        assertThat(code).as(out.toString()).isZero();
+        try (var dirs = Files.list(tmp.resolve("runs"))) {
+            return dirs.findFirst().orElseThrow();
+        }
+    }
+
+    @Test
+    void generationReportContainsNoSourceOrAnswerText() throws Exception {
+        try (var stub = new StubServer()) {
+            Path dir = runGeneration(stub);
+
+            assertThat(dir.getFileName().toString()).endsWith("-generation");
+            for (String file : new String[] {"report.md", "report.json"}) {
+                assertThat(Files.readString(dir.resolve(file))).doesNotContain("DISTINCTIVE_ANSWER_TEXT").doesNotContain("DISTINCTIVE_SOURCE_TEXT");
+            }
+            assertThat(Files.readString(dir.resolve("answers.json"))).contains("DISTINCTIVE_ANSWER_TEXT");
+            assertThat(Files.readString(dir.resolve("report.md"))).contains("gen-model").contains("faithfulness");
+        }
+    }
+
+    @Test
+    void restrictedItemsRunTwiceWithBothKeys() throws Exception {
+        try (var stub = new StubServer()) {
+            runGeneration(stub);
+
+            assertThat(stub.requests.stream().filter(r -> r.path().equals("/v1/ask")).map(StubServer.Request::apiKey).toList())
+                    .containsExactly("k-int", "k-res", "k-int", "k-pub");
+        }
+    }
+
+    @Test
+    void generationRequiresJudgeKey() throws Exception {
+        try (var stub = new StubServer()) {
+            assertThat(run(stub, Map.of("RAG_KEY_DEV", "k"), "--generation=true")).isEqualTo(2);
+        }
+    }
 }

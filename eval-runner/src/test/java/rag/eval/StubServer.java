@@ -29,15 +29,28 @@ final class StubServer implements AutoCloseable {
              "usage":{"promptTokens":100,"completionTokens":10},"latencyMs":{"retrieval":5,"rerank":0,"generation":42}}""";
     /** When set, builds the {@code /v1/search} response from the request body (to vary similarity per question). */
     volatile java.util.function.Function<String, String> searchResponder;
+    volatile int judgeStatus = 200;
+    /** Builds the {@code /chat/completions} response body (the whole OpenAI-style JSON) from the request body. */
+    volatile java.util.function.Function<String, String> judgeResponder = body -> judgeContent("{\"verdicts\":[\"yes\"]}");
     volatile String infoBody = """
-            {"rag":{"corpusVersion":"abc123","chunkerVersion":"fixed-512-64-cl100k","embeddingModel":"ollama/nomic-embed-text","index":"x"}}""";
+            {"rag":{"corpusVersion":"abc123","chunkerVersion":"fixed-512-64-cl100k","embeddingModel":"ollama/nomic-embed-text","index":"x","generationModel":"gen-model","answerPrompt":"answer.v2"}}""";
 
     StubServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/v1/search", ex -> respond(ex, searchStatus, null));
         server.createContext("/v1/ask", ex -> respond(ex, askStatus, askBody));
+        server.createContext("/chat/completions", ex -> respond(ex, judgeStatus, null));
         server.createContext("/actuator/info", ex -> respond(ex, 200, infoBody));
         server.start();
+    }
+
+    static String judgeContent(String content) {
+        return "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":"
+                + tools.jackson.databind.json.JsonMapper.builder().build().writeValueAsString(content) + "}}]}";
+    }
+
+    synchronized long judgeCalls() {
+        return requests.stream().filter(r -> r.path().equals("/chat/completions")).count();
     }
 
     URI base() {
@@ -49,7 +62,10 @@ final class StubServer implements AutoCloseable {
                 new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
         String requestBody = requests.getLast().body();
         if (body == null) {
-            body = searchResponder != null ? searchResponder.apply(requestBody) : searchBody;
+            body = switch (requests.getLast().path()) {
+                case "/chat/completions" -> judgeResponder.apply(requestBody);
+                default -> searchResponder != null ? searchResponder.apply(requestBody) : searchBody;
+            };
         }
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         ex.getResponseHeaders().add("Content-Type", status == 200 ? "application/json" : "application/problem+json");

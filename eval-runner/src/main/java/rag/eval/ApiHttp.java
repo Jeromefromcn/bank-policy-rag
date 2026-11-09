@@ -10,24 +10,30 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /** Shared HTTP plumbing for the app clients: API key header, JSON, problem+json errors. */
-final class ApiHttp {
+public final class ApiHttp {
 
-    static final JsonMapper JSON = JsonMapper.builder().build();
+    public static final JsonMapper JSON = JsonMapper.builder().build();
 
     private final URI base;
-    private final String apiKey;
+    private final String headerName;
+    private final String headerValue;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
     ApiHttp(URI base, String apiKey) {
-        this.base = base;
-        this.apiKey = apiKey;
+        this(base, "X-Api-Key", apiKey);
     }
 
-    JsonNode get(String path) {
+    public ApiHttp(URI base, String headerName, String headerValue) {
+        this.base = base;
+        this.headerName = headerName;
+        this.headerValue = headerValue;
+    }
+
+    public JsonNode get(String path) {
         return send(HttpRequest.newBuilder(base.resolve(path)).GET());
     }
 
-    JsonNode post(String path, Object body) {
+    public JsonNode post(String path, Object body) {
         return send(HttpRequest.newBuilder(base.resolve(path)).header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body))));
     }
@@ -35,7 +41,7 @@ final class ApiHttp {
     private JsonNode send(HttpRequest.Builder request) {
         HttpResponse<String> res;
         try {
-            res = http.send(request.header("X-Api-Key", apiKey).timeout(Duration.ofSeconds(120)).build(),
+            res = http.send(request.header(headerName, headerValue).timeout(Duration.ofSeconds(120)).build(),
                     HttpResponse.BodyHandlers.ofString());
         } catch (IOException e) {
             throw new IllegalStateException("request to " + base + " failed: " + e.getMessage(), e);
