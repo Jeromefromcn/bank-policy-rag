@@ -46,10 +46,20 @@ public final class EvalRunner {
         for (String a : args) {
             int eq = a.indexOf('=');
             if (!a.startsWith("--") || eq < 0) {
-                out.println("usage: --base-url=URL [--split=all|dev|test] [--mode=VECTOR|BM25|HYBRID] [--sweep=true] [--export-labels=RUN_DIR [--seed=N] [--n=20]] [--agreement=RUN_DIR [--labels=FILE]] [--generation=true --judge-model=… --judge-url=… --judge-cache=… --min-overlap=…] [--golden=…] [--corpus=…] [--out=…]");
+                out.println("usage: --base-url=URL [--split=all|dev|test] [--mode=VECTOR|BM25|HYBRID] [--sweep=true] [--overlap-sweep=RUN_DIR] [--export-labels=RUN_DIR [--seed=N] [--n=20]] [--agreement=RUN_DIR [--labels=FILE]] [--generation=true --judge-model=… --judge-url=… --judge-cache=… --min-overlap=…] [--golden=…] [--corpus=…] [--out=…]");
                 return 2;
             }
             opts.put(a.substring(2, eq), a.substring(eq + 1));
+        }
+        if (opts.containsKey("overlap-sweep")) {
+            try {
+                OverlapSweep.run(Path.of(opts.get("overlap-sweep")));
+                out.println("wrote " + Path.of(opts.get("overlap-sweep")).resolve("overlap-sweep.md"));
+                return 0;
+            } catch (RuntimeException e) {
+                out.println("error: " + e.getMessage());
+                return 1;
+            }
         }
         if (opts.containsKey("export-labels") || opts.containsKey("agreement")) {
             return labelTools(opts, out);

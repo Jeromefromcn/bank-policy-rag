@@ -82,4 +82,42 @@ class CitationValidatorTest {
         var sources = List.of("The board approves tolerance levels.");
         assertThat(validator.validate("Board approves [1].", sources)).isEqualTo(validator.validate("Board approves [1].", sources));
     }
+
+    @Test
+    void overflowingRefIsNotACitationAndDoesNotThrow() {
+        var r = validator.validate("A claim [99999999999].", List.of("a"));
+
+        assertThat(r.hardFail()).isTrue();
+        assertThat(r.citedRefs()).isEmpty();
+    }
+
+    @Test
+    void trailingMarkerAfterTheTerminatorBelongsToItsSentence() {
+        var r = validator.validate("The board approves the limit. [1]", List.of("The board approves the limit."));
+
+        assertThat(r.sentences()).hasSize(1);
+        assertThat(r.sentences().get(0).text()).isEqualTo("The board approves the limit.");
+        assertThat(r.sentences().get(0).refs()).containsExactly(1);
+    }
+
+    @Test
+    void markerWithoutSpaceStillSplitsSentences() {
+        var r = validator.validate("Alpha rule applies.[1] Beta rule applies.[2]", List.of("alpha rule applies", "beta rule applies"));
+
+        assertThat(r.sentences()).hasSize(2);
+        assertThat(r.sentences().get(0).refs()).containsExactly(1);
+        assertThat(r.sentences().get(1).refs()).containsExactly(2);
+    }
+
+    @Test
+    void listLeadInMergesIntoTheFirstItem() {
+        var r = validator.validate("The policy requires:\n- Item A [1]\n- Item B [2]", List.of("item a", "item b"));
+
+        assertThat(r.coverageOk()).isTrue();
+    }
+
+    @Test
+    void leadInWithoutAnyCitationStillFails() {
+        assertThat(validator.validate("The policy requires:\n- Item A\n- Item B", List.of("a")).coverageOk()).isFalse();
+    }
 }

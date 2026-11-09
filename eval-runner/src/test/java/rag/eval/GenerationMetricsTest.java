@@ -118,4 +118,34 @@ class GenerationMetricsTest {
         assertThat(m.genP50()).isEqualTo(20);
         assertThat(m.genP95()).isEqualTo(90);
     }
+
+    @Test
+    void requestErrorsAreCountedAndLeaveTheFalseRefusalDenominator() {
+        var err = new AskResult("ERROR", "request failed", null, List.of(), null, null, 0);
+        var o = List.of(
+                new ItemOutcome(item("a", "factual", "dev"), Kind.ANSWERABLE, refused("LOW_RETRIEVAL_SCORE"), List.of(), List.of()),
+                new ItemOutcome(item("b", "factual", "dev"), Kind.ANSWERABLE, answered(1, 1, 5), List.of(), List.of()),
+                new ItemOutcome(item("c", "factual", "dev"), Kind.ANSWERABLE, err, List.of(), List.of()),
+                new ItemOutcome(item("d", "factual", "dev"), Kind.ANSWERABLE, err, List.of(), List.of()));
+
+        var m = dev(o).byCategory().get("all");
+
+        assertThat(m.askErrors()).isEqualTo(2);
+        assertThat(m.falseRefusalRate()).isCloseTo(0.5, offset(1e-9));
+    }
+
+    @Test
+    void overlapFlagsAreCrossedWithJudgeVerdicts() {
+        var o = List.of(new ItemOutcome(item("a", "factual", "dev"), Kind.ANSWERABLE, answered(1, 1, 5), List.of(),
+                List.of(sentence(true, JudgeVerdict.UNSUPPORTED), sentence(true, JudgeVerdict.SUPPORTED),
+                        sentence(false, JudgeVerdict.SUPPORTED), sentence(false, JudgeVerdict.SUPPORTED),
+                        sentence(false, JudgeVerdict.UNSUPPORTED), sentence(true, JudgeVerdict.ERROR))));
+
+        var t = dev(o).byCategory().get("all").overlapVsJudge();
+
+        assertThat(t.flaggedUnsupported()).isEqualTo(1);
+        assertThat(t.flaggedSupported()).isEqualTo(1);
+        assertThat(t.unflaggedSupported()).isEqualTo(2);
+        assertThat(t.unflaggedUnsupported()).isEqualTo(1);
+    }
 }

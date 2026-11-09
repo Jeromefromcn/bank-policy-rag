@@ -12,7 +12,11 @@ import rag.eval.judge.JudgeVerdict;
 /** Generation-side metrics (spec 03 §7.3, spec 00 §6.3). ERROR verdicts are never supported but stay in the denominator. */
 public final class GenerationMetrics {
 
-    public record Metrics(int nCalls, int nAnswered, Double falseRefusalRate, int points, int supportedPoints, int pointErrors,
+    /** Flagged = overlap below the run's threshold; ERROR verdicts are excluded. */
+    public record OverlapTable(int flaggedSupported, int flaggedUnsupported, int unflaggedSupported, int unflaggedUnsupported) {}
+
+    /** {@code falseRefusalRate} is over calls that got an answer or a refusal; {@code askErrors} are request failures. */
+    public record Metrics(int nCalls, int askErrors, OverlapTable overlapVsJudge, int nAnswered, Double falseRefusalRate, int points, int supportedPoints, int pointErrors,
             Double faithfulness, int sentences, int supportedSentences, int sentenceErrors, Double citationSupport,
             Double softFlagRate, int validationFailures, Double meanTotalTokens, Long genP50, Long genP95) {}
 
@@ -61,7 +65,12 @@ public final class GenerationMetrics {
                 .map(o -> o.ask().promptTokens() + o.ask().completionTokens()).toList();
         List<Long> latencies = answered.stream().map(o -> o.ask().generationMs()).collect(Collectors.toList());
 
-        return new Metrics(calls.size(), answered.size(), calls.isEmpty() ? null : (double) refused / calls.size(),
+        int askErrors = (int) calls.stream().filter(o -> o.ask().status().equals("ERROR")).count();
+        int decided = calls.size() - askErrors;
+        List<GenerationRun.SentenceOutcome> sentences = answered.stream().flatMap(o -> o.sentences().stream()).toList();
+        var overlap = new OverlapTable(overlapCount(sentences, true, JudgeVerdict.SUPPORTED), overlapCount(sentences, true, JudgeVerdict.UNSUPPORTED),
+                overlapCount(sentences, false, JudgeVerdict.SUPPORTED), overlapCount(sentences, false, JudgeVerdict.UNSUPPORTED));
+        return new Metrics(calls.size(), askErrors, overlap, answered.size(), decided == 0 ? null : (double) refused / decided,
                 points.size(), supportedPoints, count(points, JudgeVerdict.ERROR),
                 points.isEmpty() ? null : (double) supportedPoints / points.size(),
                 sentenceVerdicts.size(), supportedSentences, count(sentenceVerdicts, JudgeVerdict.ERROR),
@@ -70,6 +79,10 @@ public final class GenerationMetrics {
                 tokens.isEmpty() ? null : tokens.stream().mapToInt(Integer::intValue).average().orElse(0),
                 latencies.isEmpty() ? null : ReportWriter.percentile(latencies, 50),
                 latencies.isEmpty() ? null : ReportWriter.percentile(latencies, 95));
+    }
+
+    private static int overlapCount(List<GenerationRun.SentenceOutcome> sentences, boolean flagged, JudgeVerdict verdict) {
+        return (int) sentences.stream().filter(x -> x.flagged() == flagged && x.verdict() == verdict).count();
     }
 
     private static int count(List<JudgeVerdict> verdicts, JudgeVerdict v) {

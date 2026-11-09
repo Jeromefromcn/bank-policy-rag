@@ -27,6 +27,9 @@ public class PromptRenderer {
     public static final String NO_ANSWER = "NO_ANSWER";
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{(sources|question)}");
 
+    /** Three or more angle brackets, whatever the case, spacing, line breaks or full-width form around them. */
+    private static final Pattern FENCE_LIKE = Pattern.compile("[<\\uFF1C](?:\\s*[<\\uFF1C]){2,}");
+
     private final String system;
     private final String user;
 
@@ -66,9 +69,9 @@ public class PromptRenderer {
         return new Prompt(List.of(new SystemMessage(system), new UserMessage(out.toString())));
     }
 
-    /** A source must not be able to close or open a fence: the delimiters are visibly altered. */
+    /** A source must not be able to close or open a fence: any run of three or more '<' is replaced by U+2039 marks. */
     static String neutralise(String text) {
-        return text.replace("<<<END SOURCE", "<<< END SOURCE").replace("<<<SOURCE", "<<< SOURCE");
+        return FENCE_LIKE.matcher(text).replaceAll("\u2039\u2039\u2039");
     }
 
     private static String load(String resource) {

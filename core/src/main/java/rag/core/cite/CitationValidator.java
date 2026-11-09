@@ -14,9 +14,11 @@ import java.util.regex.Pattern;
  */
 public final class CitationValidator {
 
-    private static final Pattern MARKER = Pattern.compile("\\[(\\d+(?:\\s*,\\s*\\d+)*)]");
+    private static final Pattern MARKER = Pattern.compile("\\[(\\d{1,9}(?:\\s*,\\s*\\d{1,9})*)]");
+    /** A terminator plus any citation markers glued to it ({@code "limit. [1]"}, {@code "applies.[1]"}). */
+    private static final Pattern TERMINATOR = Pattern.compile("[.!?](?:\\s*\\[\\d{1,9}(?:\\s*,\\s*\\d{1,9})*])*");
+    private static final Pattern NEXT_SENTENCE = Pattern.compile("\\s+[A-Z]");
     private static final Pattern LIST_ITEM = Pattern.compile("^\\s*(?:[-*•]|\\d+[.)])\\s+.*");
-    private static final Pattern SENTENCE_BREAK = Pattern.compile("(?<=[.!?])\\s+(?=[A-Z\\[])|\\R");
 
     private final double minOverlap;
 
@@ -42,7 +44,7 @@ public final class CitationValidator {
         }
 
         List<CitationReport.SentenceCheck> sentences = new ArrayList<>();
-        for (String raw : SENTENCE_BREAK.split(answer)) {
+        for (String raw : sentences(answer)) {
             List<Integer> refs = refsIn(raw);
             if (refs.isEmpty()) {
                 continue;
@@ -58,6 +60,26 @@ public final class CitationValidator {
             sentences.add(new CitationReport.SentenceCheck(text, refs, overlap, overlap < minOverlap));
         }
         return new CitationReport(rangeOk, coverageOk, List.copyOf(cited), sentences);
+    }
+
+    /** Splits on line breaks and on a terminator (with its glued markers) followed by an upper-case word. */
+    static List<String> sentences(String text) {
+        List<String> out = new ArrayList<>();
+        for (String line : text.split("\\R")) {
+            int start = 0;
+            Matcher m = TERMINATOR.matcher(line);
+            while (m.find()) {
+                int end = m.end();
+                if (end == line.length() || NEXT_SENTENCE.matcher(line).region(end, line.length()).lookingAt()) {
+                    out.add(line.substring(start, end));
+                    start = end;
+                }
+            }
+            if (start < line.length() && !line.substring(start).isBlank()) {
+                out.add(line.substring(start));
+            }
+        }
+        return out;
     }
 
     private static double overlap(List<String> sentenceTokens, Set<String> sourceTokens) {
@@ -87,8 +109,11 @@ public final class CitationValidator {
             if (line.isBlank()) {
                 flush(out, current);
             } else if (LIST_ITEM.matcher(line).matches()) {
-                flush(out, current);
-                current.append(line);
+                // A lead-in such as "The policy requires:" belongs to the first item that follows it.
+                if (current.isEmpty() || !current.toString().stripTrailing().endsWith(":")) {
+                    flush(out, current);
+                }
+                current.append(current.isEmpty() ? "" : " ").append(line);
             } else {
                 current.append(current.isEmpty() ? "" : " ").append(line);
             }

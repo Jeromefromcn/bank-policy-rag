@@ -62,6 +62,7 @@ public final class GenerationReport {
     private static Map<String, Object> answerRow(ItemOutcome o) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", o.item().id());
+        row.put("split", o.item().split());
         row.put("category", o.item().category());
         row.put("question", o.item().question());
         row.put("kind", o.kind());
@@ -85,9 +86,12 @@ public final class GenerationReport {
         md.append("- Versions: ").append(meta.info()).append("\n\n");
         for (Summary s : summaries) {
             md.append("## Split: ").append(s.split()).append("\n\n");
-            md.append("| group | n calls | answered | false refusal | faithfulness (supported/points) | point errors | citation support (supported/sentences) | sentence errors | soft-flag rate | validation failures | mean tokens | gen p50/p95 ms |\n");
-            md.append("|---|---|---|---|---|---|---|---|---|---|---|---|\n");
+            md.append("| group | n calls | ask errors | answered | false refusal | faithfulness (supported/points) | point errors | citation support (supported/sentences) | sentence errors | soft-flag rate | validation failures | mean tokens | gen p50/p95 ms |\n");
+            md.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|\n");
             s.byCategory().forEach((group, m) -> md.append(row(group, m)));
+            md.append("\nOverlap flag vs judge (sentences; flagged = overlap below threshold):\n\n| group | flagged+supported | flagged+unsupported | unflagged+supported | unflagged+unsupported |\n|---|---|---|---|---|\n");
+            s.byCategory().forEach((group, m) -> md.append(String.format("| %s | %d | %d | %d | %d |%n", group, m.overlapVsJudge().flaggedSupported(),
+                    m.overlapVsJudge().flaggedUnsupported(), m.overlapVsJudge().unflaggedSupported(), m.overlapVsJudge().unflaggedUnsupported())));
             md.append("\n| refusal check | n | correctly refused | accuracy |\n|---|---|---|---|\n");
             md.append("| unanswerable | ").append(s.unanswerable().n()).append(" | ").append(s.unanswerable().correct()).append(" | ")
                     .append(fmt(s.unanswerable().accuracy())).append(" |\n");
@@ -95,13 +99,13 @@ public final class GenerationReport {
                     .append(" | ").append(fmt(s.restricted().accuracy())).append(" |\n\n");
         }
         long errors = outcomes.stream().filter(o -> o.ask().status().equals("ERROR")).count();
-        md.append("Request errors: ").append(errors).append("\n\n");
+        md.append("Request errors: ").append(errors).append(errors > 0 ? " (excluded from false refusal rates; headline numbers are partial)" : "").append("\n\n");
         md.append("Small n: differences of a single item are not evidence. Tuning decisions use `dev` only.\n");
         return md.toString();
     }
 
     private static String row(String group, Metrics m) {
-        return String.format("| %s | %d | %d | %s | %s (%d/%d) | %d | %s (%d/%d) | %d | %s | %d | %s | %s |%n", group, m.nCalls(),
+        return String.format("| %s | %d | %d | %d | %s | %s (%d/%d) | %d | %s (%d/%d) | %d | %s | %d | %s | %s |%n", group, m.nCalls(), m.askErrors(),
                 m.nAnswered(), fmt(m.falseRefusalRate()), fmt(m.faithfulness()), m.supportedPoints(), m.points(), m.pointErrors(),
                 fmt(m.citationSupport()), m.supportedSentences(), m.sentences(), m.sentenceErrors(), fmt(m.softFlagRate()),
                 m.validationFailures(), m.meanTotalTokens() == null ? "n/a" : String.format("%.0f", m.meanTotalTokens()),
