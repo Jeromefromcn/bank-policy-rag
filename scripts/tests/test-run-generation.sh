@@ -49,7 +49,8 @@ check "sweep dry run -> exit 0" 0 "$code" "$out"
 check "sweep: runner flag" 0 "$code" "$out" "--sweep=true"
 check "sweep: structural nomic index" 0 "$code" "$out" "RAG_CHUNKS_INDEX=rag_dev-chunks-nomic768-struct400-v1"
 check "sweep: sections index" 0 "$code" "$out" "RAG_SECTIONS_INDEX=rag_dev-sections-struct400-v1"
-check "sweep: extra keys are passed by name only" 0 "$code" "$out" "RAG_SECURITY_APIKEYS_1_KEY"
+check "sweep: all three callers are passed by name only" 0 "$code" "$out" "RAG_SECURITY_APIKEYS_0_KEY"
+check "sweep: public caller" 0 "$code" "$out" "RAG_SECURITY_APIKEYS_2_CLEARANCE"
 
 run --dry-run generate
 check "generate dry run -> exit 0" 0 "$code" "$out"
