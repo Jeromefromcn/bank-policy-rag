@@ -72,8 +72,9 @@ flowchart TD
 
 ### 3.2 Threshold sweep (no tokens)
 
-`eval-runner --sweep` runs retrieval only (`/v1/search`, `HYBRID`) for every item with the key
-prescribed by spec 00 §6.2, reads `bestVectorSimilarity` and writes, for thresholds on a fixed grid
+`eval-runner --sweep` runs retrieval only (`/v1/search`, `HYBRID`) for every item with the key the
+generation run uses (§7.1: the key at `minClearance` for answerable items, so false-refusal numbers match the
+conditions the gate will run under; `restricted` for `unanswerable`), reads `bestVectorSimilarity` and writes, for thresholds on a fixed grid
 (0.00 to 1.00, step 0.01):
 
 - `unanswerable` refused rate and `restricted` (below-clearance key) refused rate;
