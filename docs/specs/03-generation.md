@@ -1,6 +1,6 @@
 # 03 · Phase 3 Spec: Citations, Refusals, Generation-Side Eval
 
-- **Status**: Draft 2026-11-08, awaiting author approval
+- **Status**: Approved 2026-11-08
 - **Scope**: ROADMAP §5 Phase 3. Builds on `00-overall-design.md`, `01-baseline.md`, `02-retrieval.md`; does not repeat them.
 - **Exit**: `evidence/phase3-generation.md` with three numbers (faithfulness, refusal accuracy, judge
   agreement), produced from real runner output. Regressions and surprises are recorded as they are.

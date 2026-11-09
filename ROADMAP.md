@@ -20,7 +20,7 @@ How to track progress:
 - [x] **Phase 0** · Spec, corpus, golden set — spec, manifest, internal docs, golden set committed
 - [x] **Phase 1** · Naive baseline — `evidence/phase1-baseline.md`
 - [x] **Phase 2** · Structural chunking + hybrid + embedding ablation — `evidence/phase2-*.md` (two comparison tables)
-- [ ] **Phase 3** · Citations, refusals, generation-side eval — `evidence/phase3-*.md`
+- [x] **Phase 3** · Citations, refusals, generation-side eval — `evidence/phase3-*.md`
 - [ ] **Phase 4** · Rerank and query rewriting (optional) — `evidence/phase4-*.md`
 - [ ] **Phase 5** · Permissions, audit, observability, CI gate — green CI gate + permission and injection test records
 - [ ] **Phase 6** · MCP server — `evidence/phase6-*.md` (integration record)
@@ -397,7 +397,8 @@ record the reasons honestly.
 - [x] Eval runner v2: add faithfulness (LLM judge, a binary judgement per key point: is it
       supported by a source?) and refusal accuracy (computed separately for `unanswerable`
       and `restricted`).
-- [ ] Human-label 20 items and compute judge–human agreement.
+- [x] Human-label 20 items and compute judge–human agreement. (Labels drafted by Claude and adopted by the author; not
+      blind, so the agreement is weak evidence. See `evidence/phase3-generation.md` §5.)
 
 **Exit**: three numbers — faithfulness, refusal accuracy, judge agreement.
 
