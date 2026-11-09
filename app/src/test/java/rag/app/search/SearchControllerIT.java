@@ -153,4 +153,18 @@ class SearchControllerIT extends IntegrationTest {
     void infoRequiresKey() {
         assertThat(Http.get(port, "/actuator/info", null).status()).isEqualTo(401);
     }
+
+    @Test
+    void responseCarriesBestVectorSimilarity() {
+        var r = post(Map.of("query", QUERY, "mode", "HYBRID"));
+        assertThat(r.status()).isEqualTo(200);
+        assertThat(JSON.readTree(r.body()).get("diagnostics").get("bestVectorSimilarity").asDouble()).isGreaterThan(0.99);
+    }
+
+    @Test
+    void bestVectorSimilarityIsNullInBm25Mode() {
+        var r = post(Map.of("query", QUERY, "mode", "BM25"));
+        assertThat(r.status()).isEqualTo(200);
+        assertThat(JSON.readTree(r.body()).get("diagnostics").get("bestVectorSimilarity").isNull()).isTrue();
+    }
 }

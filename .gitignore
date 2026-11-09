@@ -31,3 +31,8 @@ eval-runner/out/
 
 # --- Claude Code local settings ---
 .claude/settings.local.json
+
+# --- Phase 3: judge cache and label sheet hold source text; SDD scratch ---
+eval/.judge-cache/
+eval/.human-labels-sheet.md
+.superpowers/

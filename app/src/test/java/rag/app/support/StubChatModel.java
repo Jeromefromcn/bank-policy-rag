@@ -15,6 +15,8 @@ public class StubChatModel implements ChatModel {
 
     private final List<Prompt> prompts = new ArrayList<>();
     private volatile boolean fail;
+    private volatile String reply = DEFAULT_REPLY;
+    public static final String DEFAULT_REPLY = "Answer [1].";
 
     @Override
     public synchronized ChatResponse call(Prompt prompt) {
@@ -23,7 +25,7 @@ public class StubChatModel implements ChatModel {
             throw new IllegalStateException("stub LLM failure");
         }
         var metadata = ChatResponseMetadata.builder().usage(new DefaultUsage(100, 10)).build();
-        return new ChatResponse(List.of(new Generation(new AssistantMessage("Answer [1]."))), metadata);
+        return new ChatResponse(List.of(new Generation(new AssistantMessage(reply))), metadata);
     }
 
     public synchronized int calls() {
@@ -37,6 +39,11 @@ public class StubChatModel implements ChatModel {
     public synchronized void reset() {
         prompts.clear();
         fail = false;
+        reply = DEFAULT_REPLY;
+    }
+
+    public void reply(String text) {
+        reply = text;
     }
 
     public void failNext() {

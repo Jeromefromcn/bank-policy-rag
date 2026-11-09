@@ -48,6 +48,10 @@ rag:
       min-tokens: 60
   corpus:
     root: corpus
+  ask:
+    # 0 = gate off. The value comes from decisions/03 (spec 03 §3.2).
+    min-similarity: ${RAG_ASK_MIN_SIMILARITY:0.0}
+    min-overlap: 0.5
 
 spring:
   application:

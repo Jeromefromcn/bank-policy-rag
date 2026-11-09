@@ -9,7 +9,12 @@ import rag.core.model.Clearance;
 /** Every limit, threshold and model id is a property (spec 00 §5). Defaults live in application.yaml. */
 @ConfigurationProperties("rag")
 public record RagProperties(
-        String envPrefix, Security security, Embedding embedding, Retrieval retrieval, Chunking chunking, Corpus corpus) {
+        String envPrefix, Security security, Embedding embedding, Retrieval retrieval, Chunking chunking, Corpus corpus, Ask ask) {
+
+    public RagProperties {
+        ask = ask == null ? new Ask(0.0, 0.5) : ask;
+    }
+
 
     public record Security(List<ApiKey> apiKeys) {
         public Security {
@@ -63,4 +68,11 @@ public record RagProperties(
     public record Structural(int maxTokens, int minTokens) {}
 
     public record Corpus(String root) {}
+
+    /**
+     * @param minSimilarity refusal gate: best vector-leg cosine similarity below this refuses without calling the
+     *                      model. {@code 0} (or less) turns the gate off until {@code decisions/03} sets a value
+     * @param minOverlap    lexical-overlap flag threshold of the citation validator (soft: never refuses)
+     */
+    public record Ask(double minSimilarity, double minOverlap) {}
 }
