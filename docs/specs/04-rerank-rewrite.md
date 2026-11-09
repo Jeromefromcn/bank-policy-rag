@@ -24,33 +24,35 @@ observability spans (Phase 5), contextual chunk headers, rerank in CI (PR CI has
 
 ## 2. Verification at the start of the Phase (ROADMAP §10)
 
-Checked 2026-11-09 while drafting; the remaining rows are filled in by plan Task 1 before any code.
+Checked 2026-11-09 (plan Task 1). The llama.cpp route failed for MiniLM, and the author chose the Python sidecar
+for both models (§3).
 
 | Item | How | Result |
 |---|---|---|
-| llama.cpp server image on arm64 | `docker manifest inspect ghcr.io/ggml-org/llama.cpp:server` | Multi-arch; `arm64` present. Exact release tag and digest to pin: Task 1 |
-| GGUF rerankers | Hugging Face search | MiniLM: community GGUFs only (e.g. `cstr/ms-marco-MiniLM-L-6-v2-GGUF`, several Q8_0/F16). `bge-reranker-v2-m3`: `gpustack/bge-reranker-v2-m3-GGUF` and others. No official GGUF for either |
-| Python sidecar base | `docker manifest inspect python:3.12-slim` | Multi-arch; `arm64` present. PyTorch publishes aarch64 CPU wheels |
-| **Score parity** of the chosen GGUF against the reference `sentence-transformers` `CrossEncoder` | Score 20 self-made (query, passage) pairs with both; compare rank order (Spearman) and max absolute logit difference | Task 1. Pass: identical top-1 on every query and Spearman ≥ 0.99 |
-| Response shape of llama.cpp `/v1/rerank` | One live call | Task 1. Confirm it returns raw logits (not normalised) and keeps input indices |
-| Reranker cold start and RSS for both models | `docker stats` under the limits in §3 | Task 1 |
+| llama.cpp server image on arm64 | `docker buildx imagetools inspect` | `ghcr.io/ggml-org/llama.cpp:server-b11889` (2026-10-25) is multi-arch with `arm64`. Tried, then dropped (below) |
+| MiniLM GGUFs in llama.cpp b11889 | Load and score the parity pairs | **Fail.** `cstr/ms-marco-MiniLM-L-6-v2-GGUF` (F32, rev `1a9ef5c`) does not load ("bert model needs to define token type count"). `sinjab/…-F16-GGUF` (rev `056fdac`) and `keisuke-miyako/…-gguf-f16` (rev `66a5cbb`) load but return the same near-constant scores (−0.02 to −0.10) where the reference logits are about ±10; top-1 wrong on 3 of 5 queries. llama.cpp does not apply this model's classification head |
+| bge-reranker-v2-m3 GGUF in llama.cpp | Parity pairs | Pass (`gpustack/bge-reranker-v2-m3-GGUF` FP16, rev `3093af0`): Spearman 1.000 on all 5 queries, max abs logit difference 0.63. About 55 s for 20 passages of about 280 tokens on 2 threads |
+| Python sidecar base | `docker buildx imagetools inspect python:3.12-slim` | Multi-arch index `sha256:5e2bdb1b…`; `torch==2.9.1` (CPU wheel index) and `sentence-transformers==5.1.2` install on aarch64 |
+| **Score parity** of the sidecar against `sentence-transformers` `CrossEncoder` | `scripts/rerank-parity/run.sh minilm|bge`: 5 self-made queries × 4 passages | Pass for both models, max abs difference 0.0000 (same weights, same library; the check confirms the HTTP path and index mapping) |
+| Response shape | One live call | `{"model", "results": [{"index", "relevance_score"}]}`, raw logits, sorted descending, `index` refers to the input order |
+| Cold start, RSS, latency (2 CPUs) | `docker stats`; 20 passages of about 280 cl100k tokens, 3 calls | MiniLM: ready in 21 s (weights cached after the first start), 333 MiB, **about 1.95 s** per call. bge-reranker-v2-m3: ready in 49 s, 1.87 GiB, **about 54 s** per call. Synthetic passages; real chunks are shorter (median 108 tokens), so §7 measures the real figures |
 
 ## 3. Reranker sidecar
 
-**Choice: llama.cpp server in reranking mode (ROADMAP §7.1 option a), with a parity check as a gate.**
+**Choice: a Python sidecar (ROADMAP §7.1 option b) for both models.** Chosen by the author on 2026-11-09 after the
+llama.cpp route failed parity for MiniLM (§2).
 
-- Off-the-shelf multi-arch image, no project code in another language, and one image runs both models (only the GGUF
-  file changes). The cost is that both GGUFs are community conversions, the same situation as `bge-small` in Phase 2.
-  The parity check in §2 is what makes that acceptable.
-- **Fallback**: if MiniLM fails parity, use option (b): a ~40-line Python sidecar
-  (`sentence-transformers` `CrossEncoder`, pinned versions, official weights) exposing the same `/v1/rerank` shape. The
-  app-side client does not change. The spec records which one was used.
-- Quantisation: **F16** GGUF for both models if parity passes; Q8_0 only if F16 does not fit the memory limit.
-  The model file and its `sha256` are recorded in the evidence report.
-- Service: `reranker` in `compose.yaml`, profile `rerank`, `--reranking --ctx-size 512 --threads 2 --parallel 1`,
-  loopback port, limits **2 CPUs / 1 GB** (ROADMAP §7). For the `bge-reranker-v2-m3` comparison run, memory is raised
-  to 3 GB for that run only (ROADMAP §7), recorded in the evidence report. Model files live in a named volume, not in git.
-- **Where it runs on the development server** is a hosting question; see §10 item 1.
+- `reranker/server.py`: standard-library HTTP server, `sentence-transformers` `CrossEncoder` with
+  `activation_fn=Identity` (raw logits), `max_length=512`, `torch.set_num_threads(2)`. `POST /v1/rerank`
+  `{"query", "documents", "top_n"}` → `{"model", "results": [{"index", "relevance_score"}]}`; `GET /health`.
+- `reranker/Dockerfile`: `python:3.12-slim` pinned by digest, `torch==2.9.1` (CPU wheel index), `sentence-transformers==5.1.2`.
+- Official weights from Hugging Face, pinned by revision: `cross-encoder/ms-marco-MiniLM-L6-v2` @ `233902d2` (default),
+  `BAAI/bge-reranker-v2-m3` @ `953dc6f6`. Selected with `RERANKER_MODEL` / `RERANKER_REVISION`, cached in the
+  `reranker-models` volume, not in git.
+- Service: `reranker` in `compose.yaml`, profile `rerank`, loopback port 18090, limits **2 CPUs / 1 GB**
+  (ROADMAP §7). For the `bge-reranker-v2-m3` comparison run memory is raised to 3 GB (`RERANKER_MEMORY=3G`) for that
+  run only, recorded in the evidence report.
+- Runs on the development server from this repo's compose (§10 item 1, option a).
 
 ## 4. Rerank in the retrieval path
 
@@ -205,7 +207,7 @@ CI is a Phase 5 question.
    on the dev server (project-owned, lives and dies with Phase 4 experiments); (b) ask gitops for a shared reranker
    stack. **I propose (a)**: only this project uses it, and the comparison run changes its memory limit. Either way the
    compose service exists so others can run it.
-2. **llama.cpp first, Python sidecar only if parity fails** (§3).
+2. **Reranker runtime.** Drafted as llama.cpp first; it failed MiniLM parity and the author chose the Python sidecar for both models (§2, §3).
 3. **Gate on `sigmoid(logit)`**, a separate property, applied only with `rerank: true` (§5).
 4. **Rewritten query feeds both retrieval and the answer prompt**; the answer prompt never sees history (§6.2).
 5. **In-memory conversation store**, bound to principal + clearance, `404` for both unknown and foreign ids (§6.1).
@@ -228,7 +230,7 @@ CI is a Phase 5 question.
 
 ## 12. Work order (for the plan)
 
-1. Verification (§2): pin llama.cpp image, download GGUFs, parity check, response shape; `compose.yaml` service. Fill §2.
+1. Verification (§2): reranker sidecar, parity check, response shape; `compose.yaml` service. Fill §2.
 2. Core: truncation and ordering helpers (TDD).
 3. Rerank client + `HybridSearch`/search path + `/v1/search` diagnostics + `/v1/ask` rerank + rerank gate.
 4. Eval runner: `--rerank`, repetitions, rerank sweep.

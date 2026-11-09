@@ -1,0 +1,32 @@
+# Self-made text about a fictional bank (no SPM text). Used only by the reranker parity check
+# (docs/specs/04-rerank-rewrite.md §2): each query has one clearly relevant passage and three distractors.
+- query: "How soon must the CIO be notified of a critical incident?"
+  passages:
+    - "The CIO must be notified within 30 minutes after a critical incident is declared."
+    - "The staff canteen serves lunch from noon until two in the afternoon."
+    - "Change requests are reviewed by the change advisory board every Tuesday."
+    - "Incident tickets are closed once the service owner confirms recovery."
+- query: "Who approves an emergency change?"
+  passages:
+    - "Backups of the payments database are copied to the secondary site every night."
+    - "An emergency change is approved by the Head of Technology Operations and reviewed afterwards."
+    - "Normal changes must be submitted five business days before implementation."
+    - "The annual report is published at the end of March."
+- query: "How often is the payments failover tested?"
+  passages:
+    - "Customer complaints are answered within ten business days."
+    - "Firewall rules are reviewed every quarter by the network team."
+    - "Failover of the payments service to the secondary data centre is tested twice a year."
+    - "The payments service handles retail and corporate transfers."
+- query: "What is the maximum tolerable outage for card authorisation?"
+  passages:
+    - "Card authorisation must not be unavailable for more than two hours in any disruption."
+    - "Card statements are mailed to customers once a month."
+    - "The card team reports to the Head of Retail Banking."
+    - "Outages are logged in the incident register with a severity level."
+- query: "Which vendor hosts the bank's document archive?"
+  passages:
+    - "Physical documents older than seven years are destroyed securely."
+    - "The archive team scans incoming mail every morning."
+    - "Vendors must complete a due diligence questionnaire before onboarding."
+    - "The document archive is hosted by Northwind Cloud Services in its Hong Kong region."

@@ -121,6 +121,10 @@ set -a; . ./.env; set +a
 `compose.yaml` matches the author's shared Elasticsearch and Ollama stacks (same images and
 limits); with your own Elasticsearch, point `ES_URL` at it.
 
+Optional cross-encoder rerank (Phase 4): `docker compose --profile rerank up -d reranker` builds and starts a small
+Python sidecar on `127.0.0.1:18090` (`cross-encoder/ms-marco-MiniLM-L6-v2` by default; weights are downloaded on
+first start). `scripts/rerank-parity/run.sh minilm` checks its scores against the reference library.
+
 ## Evaluation results
 
 | Phase | Configuration | Recall@5 | MRR | nDCG@10 | Notes |
