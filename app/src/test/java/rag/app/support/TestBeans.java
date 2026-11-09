@@ -2,6 +2,7 @@ package rag.app.support;
 
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import rag.app.embed.Embedder;
 
 /** Network-free stand-ins for the AI backends, shared by every integration test. */
@@ -18,5 +19,11 @@ public class TestBeans {
     @Bean
     StubChatModel stubChatModel() {
         return new StubChatModel();
+    }
+
+    @Bean
+    @Primary
+    StubReranker stubReranker() {
+        return new StubReranker();
     }
 }

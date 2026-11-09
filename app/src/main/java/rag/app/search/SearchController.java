@@ -10,17 +10,17 @@ import rag.app.security.Principal;
 @RestController
 public class SearchController {
 
-    private final HybridSearch search;
+    private final RetrievalPipeline pipeline;
 
-    public SearchController(HybridSearch search) {
-        this.search = search;
+    public SearchController(RetrievalPipeline pipeline) {
+        this.pipeline = pipeline;
     }
 
     @PostMapping("/v1/search")
     SearchResponse search(@RequestBody SearchRequest request, @AuthenticationPrincipal Principal principal) {
         var options = request.validated();
-        var outcome = search.searchWithDiagnostics(request.query(), options.topK(), options.mode(), principal);
-        return new SearchResponse("q_" + UlidCreator.getMonotonicUlid(), outcome.hits(),
-                new SearchResponse.Diagnostics(outcome.bestVectorSimilarity()));
+        var r = pipeline.retrieve(request.query(), options.topK(), options.mode(), options.rerank(), principal);
+        return new SearchResponse("q_" + UlidCreator.getMonotonicUlid(), r.hits(), new SearchResponse.Diagnostics(
+                r.bestVectorSimilarity(), r.bestRerankProbability(), new SearchResponse.Latency(r.retrievalMs(), r.rerankMs())));
     }
 }

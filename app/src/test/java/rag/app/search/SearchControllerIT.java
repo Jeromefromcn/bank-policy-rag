@@ -6,6 +6,7 @@ import static org.mockito.Mockito.doThrow;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +18,9 @@ import rag.app.es.ChunkIndexAdmin;
 import rag.app.es.ChunkWriter;
 import rag.app.support.Http;
 import rag.app.support.IntegrationTest;
+import rag.app.support.StubReranker;
+import rag.app.security.Principal;
+import rag.core.model.Clearance;
 import rag.app.support.TestIndex;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -30,9 +34,12 @@ class SearchControllerIT extends IntegrationTest {
     @Autowired ChunkIndexAdmin admin;
     @Autowired ChunkWriter writer;
     @MockitoSpyBean Embedder embedder;
+    @Autowired StubReranker reranker;
+    @Autowired HybridSearch hybrid;
 
     @BeforeEach
     void index() {
+        reranker.reset();
         if (admin.aliasInfo("t_search-chunks").isEmpty()) {
             TestIndex.rebuild(admin, writer, "t_search", TestIndex.mixed(QUERY));
         }
@@ -113,9 +120,61 @@ class SearchControllerIT extends IntegrationTest {
     }
 
     @Test
-    void unknownModeAndRerankAreRejected() {
+    void unknownModeIsRejected() {
         assertProblem(post(Map.of("query", "x", "mode", "FUZZY")), 400, "urn:rag:problem:unsupported-mode");
-        assertProblem(post(Map.of("query", "x", "rerank", true)), 400, "urn:rag:problem:unsupported-mode");
+    }
+
+    @Test
+    void rerankTrueReordersByStubScores() {
+        reranker.scoreWith((q, p) -> p.equals("outsourcing agreements") ? 8.0 : -2.0);
+        var r = post(Map.of("query", QUERY, "topK", 3, "rerank", true));
+        assertThat(r.status()).as(r.body()).isEqualTo(200);
+        JsonNode body = JSON.readTree(r.body());
+        JsonNode first = body.get("hits").get(0);
+        assertThat(first.get("chunkId").asString()).isEqualTo("c-p6");
+        assertThat(first.get("scores").get("rerankScore").asDouble()).isEqualTo(8.0);
+        assertThat(first.get("scores").has("fusedRank")).isTrue();
+        assertThat(body.get("hits").size()).isEqualTo(3);
+        JsonNode diag = body.get("diagnostics");
+        assertThat(diag.get("bestRerankProbability").asDouble()).isGreaterThan(0.999);
+        assertThat(diag.get("latencyMs").has("rerank")).isTrue();
+        assertThat(reranker.calls()).singleElement().satisfies(c -> assertThat(c.passages()).hasSize(7));
+    }
+
+    @Test
+    void publicCallerRerankRequestHasNoInternalChunk() {
+        var r = Http.post(port, "/v1/search", PUBLIC_KEY, JSON.writeValueAsString(Map.of("query", QUERY, "rerank", true)));
+        assertThat(r.status()).as(r.body()).isEqualTo(200);
+        assertThat(reranker.calls()).singleElement().satisfies(c -> {
+            assertThat(c.passages()).isNotEmpty().doesNotContain(QUERY);
+            assertThat(c.passages()).hasSize(6);
+        });
+    }
+
+    @Test
+    void rerankerDownIs503() {
+        reranker.failNext();
+        assertProblem(post(Map.of("query", QUERY, "rerank", true)), 503, "urn:rag:problem:reranker-unavailable");
+    }
+
+    @Test
+    void rerankFalseResponseMatchesPhase3() {
+        var principal = new Principal("tester", Clearance.RESTRICTED, Set.of());
+        var direct = hybrid.searchWithDiagnostics(QUERY, 5, Mode.HYBRID, principal);
+        JsonNode body = JSON.readTree(post(Map.of("query", QUERY, "rerank", false)).body());
+        JsonNode viaApi = body.get("hits");
+        assertThat(viaApi.size()).isEqualTo(direct.hits().size());
+        for (int i = 0; i < viaApi.size(); i++) {
+            JsonNode h = viaApi.get(i);
+            SearchHit d = direct.hits().get(i);
+            assertThat(h.get("chunkId").asString()).isEqualTo(d.chunkId());
+            assertThat(h.get("score").asDouble()).isEqualTo(d.score());
+            assertThat(h.get("scores").has("rerankScore")).isFalse();
+        }
+        assertThat(body.get("diagnostics").get("bestVectorSimilarity").asDouble()).isEqualTo(direct.bestVectorSimilarity());
+        assertThat(body.get("diagnostics").get("bestRerankProbability").isNull()).isTrue();
+        assertThat(body.get("diagnostics").get("latencyMs").get("rerank").asLong()).isZero();
+        assertThat(reranker.calls()).isEmpty();
     }
 
     @Test
