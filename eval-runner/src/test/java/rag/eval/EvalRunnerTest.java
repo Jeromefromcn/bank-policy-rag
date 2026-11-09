@@ -224,4 +224,34 @@ class EvalRunnerTest {
             assertThat(run(stub, Map.of("RAG_KEY_DEV", "k"), "--generation=true")).isEqualTo(2);
         }
     }
+
+    @Test
+    void missingKeysFailBeforeAnyCallIsMade() throws Exception {
+        try (var stub = new StubServer()) {
+            Path corpus = TestCorpus.create(tmp);
+            Path golden = Files.writeString(tmp.resolve("golden.yaml"), GEN_GOLDEN);
+            var out = new ByteArrayOutputStream();
+            int code = EvalRunner.run(new String[] {"--base-url=" + stub.base(), "--golden=" + golden, "--corpus=" + corpus,
+                    "--out=" + tmp.resolve("runs"), "--generation=true", "--split=dev", "--judge-url=" + stub.base()},
+                    Map.of("RAG_KEY_DEV", "k-res", "DEEPSEEK_API_KEY", "j"), new PrintStream(out));
+
+            assertThat(code).isEqualTo(1);
+            assertThat(out.toString()).contains("RAG_KEY_INTERNAL").contains("RAG_KEY_PUBLIC");
+            assertThat(stub.requests).extracting(StubServer.Request::path).doesNotContain("/v1/ask", "/chat/completions");
+        }
+    }
+
+    @Test
+    void sourceRecoveryFailureRecordsErrorsForPointsAndSentences() throws Exception {
+        try (var stub = new StubServer()) {
+            stub.searchBody = stub.searchBody.replace("\"c1\"", "\"zz1\"");
+            Path dir = runGeneration(stub);
+
+            String answers = Files.readString(dir.resolve("answers.json"));
+            assertThat(answers).contains("\"ERROR\"").doesNotContain("\"SUPPORTED\"");
+            var g1 = tools.jackson.databind.json.JsonMapper.builder().build().readTree(answers).get("items").get(0);
+            assertThat(g1.get("sentences").size()).isGreaterThan(0);
+            assertThat(g1.get("sentences").get(0).get("verdict").asString()).isEqualTo("ERROR");
+        }
+    }
 }

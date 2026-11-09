@@ -93,4 +93,12 @@ class SweepTest {
             assertThat(stub.requests.getFirst().apiKey()).isEqualTo("k-pub");
         }
     }
+
+    @Test
+    void thresholdZeroRefusesNothingEvenWithNegativeSimilarity() {
+        var t = Sweep.table(List.of(new Observation("a1", "factual", Kind.ANSWERABLE, -0.2)));
+
+        assertThat(at(t, 0.0).falseRefusalRate()).isEqualTo(0.0);
+        assertThat(at(t, 0.01).falseRefusalRate()).isEqualTo(1.0);
+    }
 }

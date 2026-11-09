@@ -70,6 +70,9 @@ class AskGateIT extends IntegrationTest {
         assertThat(restricted.get("refusalReason")).isEqualTo(outOfCorpus.get("refusalReason"));
         assertThat(restricted.get("answer")).isEqualTo(outOfCorpus.get("answer"));
         assertThat(restricted.get("citations")).isEqualTo(outOfCorpus.get("citations"));
+        assertThat(restricted.get("usage")).isEqualTo(outOfCorpus.get("usage"));
+        assertThat(restricted.get("latencyMs").get("generation")).isEqualTo(outOfCorpus.get("latencyMs").get("generation"));
+        assertThat(restricted.get("latencyMs").get("rerank")).isEqualTo(outOfCorpus.get("latencyMs").get("rerank"));
         assertThat(stub.calls()).isZero();
     }
 

@@ -120,4 +120,19 @@ class CitationValidatorTest {
     void leadInWithoutAnyCitationStillFails() {
         assertThat(validator.validate("The policy requires:\n- Item A\n- Item B", List.of("a")).coverageOk()).isFalse();
     }
+
+    @Test
+    void toleratesSpacesInsideBracketsAndExpandsRanges() {
+        assertThat(validator.validate("One [ 1 ].", List.of("a", "b", "c")).citedRefs()).containsExactly(1);
+        assertThat(validator.validate("Two [1-3].", List.of("a", "b", "c")).citedRefs()).containsExactly(1, 2, 3);
+        assertThat(validator.validate("Three [1, 3].", List.of("a", "b", "c")).citedRefs()).containsExactly(1, 3);
+    }
+
+    @Test
+    void aBracketedYearIsNotACitation() {
+        var r = validator.validate("The rule dates from [2024] and applies [1].", List.of("rule applies"));
+
+        assertThat(r.rangeOk()).isTrue();
+        assertThat(r.citedRefs()).containsExactly(1);
+    }
 }

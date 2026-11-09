@@ -36,6 +36,7 @@ public final class GenerationRun {
     private GenerationRun() {}
 
     public static List<ItemOutcome> run(List<GoldenItem> items, String split, KeySet keys, JudgeClient judge, Config cfg) {
+        keys.require(KeySet.needed(items, split));
         List<ItemOutcome> out = new ArrayList<>();
         for (GoldenItem item : items) {
             if (!split.equals("all") && !item.split().equals(split)) {
@@ -72,8 +73,11 @@ public final class GenerationRun {
         }
         List<String> sources = recoverSources(item, key, ask, cfg);
         if (sources == null) {
+            // Keep the item in citation support: its cited sentences are all ERROR rather than silently absent.
+            List<SentenceOutcome> failed = new CitationValidator(cfg.minOverlap()).validate(ask.answer(), List.of()).sentences().stream()
+                    .map(x -> new SentenceOutcome(x.text(), x.refs(), x.overlap(), x.flagged(), JudgeVerdict.ERROR)).toList();
             return new ItemOutcome(item, Kind.ANSWERABLE, ask, Collections.nCopies(item.expectedPoints().size(), JudgeVerdict.ERROR),
-                    List.of());
+                    failed);
         }
         List<JudgeVerdict> points = judge.judgePoints(ask.answer(), sources, item.expectedPoints());
 

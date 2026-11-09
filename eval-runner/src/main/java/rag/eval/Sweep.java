@@ -35,6 +35,7 @@ public final class Sweep {
     private Sweep() {}
 
     public static List<Observation> collect(List<GoldenItem> items, KeySet keys, java.net.URI base, String mode) {
+        keys.require(KeySet.needed(items, "dev"));
         List<Observation> out = new ArrayList<>();
         for (GoldenItem item : items) {
             if (!item.split().equals("dev")) {
@@ -81,12 +82,12 @@ public final class Sweep {
         return all.stream().filter(o -> o.kind() == kind).toList();
     }
 
-    /** Share refused at this threshold; null when there are no observations. A missing similarity is never refused. */
+    /** Share refused at this threshold; null when there are no observations. A missing similarity is never refused, and threshold 0 is the gate-off row. */
     private static Double rate(List<Observation> obs, double threshold) {
         if (obs.isEmpty()) {
             return null;
         }
-        long refused = obs.stream().filter(o -> o.bestSimilarity() != null && o.bestSimilarity() < threshold).count();
+        long refused = obs.stream().filter(o -> threshold > 0 && o.bestSimilarity() != null && o.bestSimilarity() < threshold).count();
         return (double) refused / obs.size();
     }
 

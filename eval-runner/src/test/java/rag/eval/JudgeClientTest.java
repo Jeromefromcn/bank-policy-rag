@@ -135,4 +135,51 @@ class JudgeClientTest {
         assertThat(JudgeCache.key("judge-point.v1", "m", "in2")).isNotEqualTo(base);
         assertThat(JudgeCache.key("judge-point.v1", "m", "in")).isEqualTo(base);
     }
+
+    @Test
+    void differentJudgeUrlMisses() throws Exception {
+        try (var a = new StubServer(); var b = new StubServer()) {
+            new JudgeClient(a.base(), "k", "m", new JudgeCache(tmp.resolve("shared"))).judgePoints("A [1].", List.of("s"), List.of("p1"));
+            new JudgeClient(b.base(), "k", "m", new JudgeCache(tmp.resolve("shared"))).judgePoints("A [1].", List.of("s"), List.of("p1"));
+
+            assertThat(a.judgeCalls()).isEqualTo(1);
+            assertThat(b.judgeCalls()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void retrySucceedsOnTheSecondAttempt() throws Exception {
+        try (var stub = new StubServer()) {
+            var calls = new java.util.concurrent.atomic.AtomicInteger();
+            stub.judgeResponder = body -> calls.incrementAndGet() == 1 ? StubServer.judgeContent("garbage")
+                    : StubServer.judgeContent("{\"verdicts\":[\"yes\"]}");
+            var client = new JudgeClient(stub.base(), "k", "m", new JudgeCache(tmp.resolve("c")), java.time.Duration.ZERO);
+
+            assertThat(client.judgePoints("A [1].", List.of("s"), List.of("p1"))).containsExactly(JudgeVerdict.SUPPORTED);
+            assertThat(calls.get()).isEqualTo(2);
+        }
+    }
+
+    @Test
+    void retryWaitsBetweenAttempts() throws Exception {
+        try (var stub = new StubServer()) {
+            stub.judgeResponder = body -> StubServer.judgeContent("garbage");
+            var client = new JudgeClient(stub.base(), "k", "m", new JudgeCache(tmp.resolve("c")), java.time.Duration.ofMillis(300));
+
+            long t0 = System.nanoTime();
+            client.judgePoints("A [1].", List.of("s"), List.of("p1"));
+
+            assertThat((System.nanoTime() - t0) / 1_000_000).isGreaterThanOrEqualTo(300);
+        }
+    }
+
+    @Test
+    void judgeUrlWithABasePathKeepsThePath() throws Exception {
+        try (var stub = new StubServer()) {
+            var client = new JudgeClient(java.net.URI.create(stub.base() + "/v1"), "k", "m", new JudgeCache(tmp.resolve("c")));
+
+            assertThat(client.judgePoints("A [1].", List.of("s"), List.of("p1"))).containsExactly(JudgeVerdict.SUPPORTED);
+            assertThat(stub.requests.getFirst().path()).isEqualTo("/v1/chat/completions");
+        }
+    }
 }

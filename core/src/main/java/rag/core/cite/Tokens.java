@@ -25,12 +25,15 @@ final class Tokens {
         return out;
     }
 
+    /** Strips a plural or tense suffix, then a final "e", so "rate" and "rates" (or "approve" and "approved") agree. */
     private static String stem(String t) {
+        String stem = t;
         for (String suffix : new String[] {"ing", "ed", "es", "s"}) {
-            if (t.endsWith(suffix) && t.length() - suffix.length() >= 3) {
-                return t.substring(0, t.length() - suffix.length());
+            if (t.endsWith(suffix) && t.length() - suffix.length() >= 3 && !(suffix.equals("s") && t.endsWith("ss"))) {
+                stem = t.substring(0, t.length() - suffix.length());
+                break;
             }
         }
-        return t;
+        return stem.length() >= 4 && stem.endsWith("e") ? stem.substring(0, stem.length() - 1) : stem;
     }
 }

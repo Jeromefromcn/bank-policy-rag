@@ -30,12 +30,18 @@ public final class ApiHttp {
     }
 
     public JsonNode get(String path) {
-        return send(HttpRequest.newBuilder(base.resolve(path)).GET());
+        return send(HttpRequest.newBuilder(url(path)).GET());
     }
 
     public JsonNode post(String path, Object body) {
-        return send(HttpRequest.newBuilder(base.resolve(path)).header("Content-Type", "application/json")
+        return send(HttpRequest.newBuilder(url(path)).header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body))));
+    }
+
+    /** The base URL's own path is kept ({@code https://host/v1} + {@code /chat/completions}). */
+    private URI url(String path) {
+        String b = base.toString();
+        return URI.create((b.endsWith("/") ? b.substring(0, b.length() - 1) : b) + path);
     }
 
     private JsonNode send(HttpRequest.Builder request) {

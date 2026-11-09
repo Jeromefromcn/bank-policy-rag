@@ -43,6 +43,15 @@ public class PromptRenderer {
         this.user = template.substring(u + "[user]\n".length()).strip();
     }
 
+    /**
+     * True when the model declined: the reply is {@code NO_ANSWER} possibly quoted, in backticks or followed by
+     * punctuation or an explanation, but carries no citation (a cited reply is an answer and goes to validation).
+     */
+    public static boolean isNoAnswer(String reply) {
+        String text = reply.strip().replaceAll("^[`\"'*\\s]+", "");
+        return text.startsWith(NO_ANSWER) && !text.matches("(?s).*\\[\\s*\\d.*");
+    }
+
     public String templateVersion() {
         return VERSION;
     }

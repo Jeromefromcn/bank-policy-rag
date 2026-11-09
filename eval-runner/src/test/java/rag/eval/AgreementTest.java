@@ -104,4 +104,16 @@ class AgreementTest {
 
         assertThatThrownBy(() -> Agreement.load(labels, answers(), 20)).hasMessageContaining("maybe");
     }
+
+    @Test
+    void malformedEntriesNameTheEntry() throws Exception {
+        Path missingIndex = Files.writeString(tmp.resolve("m1.yaml"), labels(2) + "- {itemId: g5, humanVerdict: yes}\n");
+        assertThatThrownBy(() -> Agreement.load(missingIndex, answers(), 3)).hasMessageContaining("entry 3").hasMessageContaining("pointIndex");
+
+        Path notAMap = Files.writeString(tmp.resolve("m2.yaml"), labels(2) + "- just a string\n");
+        assertThatThrownBy(() -> Agreement.load(notAMap, answers(), 3)).hasMessageContaining("entry 3");
+
+        Path missingId = Files.writeString(tmp.resolve("m3.yaml"), labels(2) + "- {pointIndex: 0, humanVerdict: yes}\n");
+        assertThatThrownBy(() -> Agreement.load(missingId, answers(), 3)).hasMessageContaining("entry 3").hasMessageContaining("itemId");
+    }
 }

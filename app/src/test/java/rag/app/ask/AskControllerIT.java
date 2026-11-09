@@ -94,6 +94,15 @@ class AskControllerIT extends IntegrationTest {
     }
 
     @Test
+    void noAnswerWithPunctuationOrBackticksStillRefusesAsLowRetrievalScore() {
+        for (String reply : new String[] {"NO_ANSWER.", "`NO_ANSWER`"}) {
+            stub.reply(reply);
+            JsonNode r = ask(KEY, Map.of("question", QUERY), 200);
+            assertThat(r.get("refusalReason").asString()).as(reply).isEqualTo("LOW_RETRIEVAL_SCORE");
+        }
+    }
+
+    @Test
     void outOfRangeCitationRefusesAsCitationValidationFailed() {
         stub.reply("A claim [99].");
         JsonNode r = ask(KEY, Map.of("question", QUERY, "topK", 3), 200);

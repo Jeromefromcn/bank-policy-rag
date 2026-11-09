@@ -14,9 +14,11 @@ import java.util.regex.Pattern;
  */
 public final class CitationValidator {
 
-    private static final Pattern MARKER = Pattern.compile("\\[(\\d{1,9}(?:\\s*,\\s*\\d{1,9})*)]");
+    /** {@code [1]}, {@code [ 1 ]}, {@code [1, 3]}, {@code [1-3]}: one to three digits, so {@code [2024]} is not a citation. */
+    private static final String MARKER_BODY = "\\[\\s*(\\d{1,3}(?:\\s*[,\\-\u2013]\\s*\\d{1,3})*)\\s*]";
+    private static final Pattern MARKER = Pattern.compile(MARKER_BODY);
     /** A terminator plus any citation markers glued to it ({@code "limit. [1]"}, {@code "applies.[1]"}). */
-    private static final Pattern TERMINATOR = Pattern.compile("[.!?](?:\\s*\\[\\d{1,9}(?:\\s*,\\s*\\d{1,9})*])*");
+    private static final Pattern TERMINATOR = Pattern.compile("[.!?](?:\\s*" + MARKER_BODY.replace("(\\d", "(?:\\d") + ")*");
     private static final Pattern NEXT_SENTENCE = Pattern.compile("\\s+[A-Z]");
     private static final Pattern LIST_ITEM = Pattern.compile("^\\s*(?:[-*•]|\\d+[.)])\\s+.*");
 
@@ -94,8 +96,18 @@ public final class CitationValidator {
         List<Integer> refs = new ArrayList<>();
         Matcher m = MARKER.matcher(text);
         while (m.find()) {
-            for (String n : m.group(1).split("\\s*,\\s*")) {
-                refs.add(Integer.parseInt(n));
+            for (String part : m.group(1).split("\\s*,\\s*")) {
+                String[] ends = part.split("\\s*[\\-\u2013]\\s*");
+                int from = Integer.parseInt(ends[0]);
+                int to = ends.length > 1 ? Integer.parseInt(ends[1]) : from;
+                if (to < from || to - from > 50) {
+                    refs.add(from);
+                    refs.add(to);
+                } else {
+                    for (int n = from; n <= to; n++) {
+                        refs.add(n);
+                    }
+                }
             }
         }
         return refs;

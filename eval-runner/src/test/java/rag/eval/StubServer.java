@@ -40,6 +40,7 @@ final class StubServer implements AutoCloseable {
         server.createContext("/v1/search", ex -> respond(ex, searchStatus, null));
         server.createContext("/v1/ask", ex -> respond(ex, askStatus, askBody));
         server.createContext("/chat/completions", ex -> respond(ex, judgeStatus, null));
+        server.createContext("/v1/chat/completions", ex -> respond(ex, judgeStatus, null));
         server.createContext("/actuator/info", ex -> respond(ex, 200, infoBody));
         server.start();
     }
@@ -50,7 +51,7 @@ final class StubServer implements AutoCloseable {
     }
 
     synchronized long judgeCalls() {
-        return requests.stream().filter(r -> r.path().equals("/chat/completions")).count();
+        return requests.stream().filter(r -> r.path().endsWith("/chat/completions")).count();
     }
 
     URI base() {
@@ -62,10 +63,8 @@ final class StubServer implements AutoCloseable {
                 new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
         String requestBody = requests.getLast().body();
         if (body == null) {
-            body = switch (requests.getLast().path()) {
-                case "/chat/completions" -> judgeResponder.apply(requestBody);
-                default -> searchResponder != null ? searchResponder.apply(requestBody) : searchBody;
-            };
+            body = requests.getLast().path().endsWith("/chat/completions") ? judgeResponder.apply(requestBody)
+                    : searchResponder != null ? searchResponder.apply(requestBody) : searchBody;
         }
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         ex.getResponseHeaders().add("Content-Type", status == 200 ? "application/json" : "application/problem+json");

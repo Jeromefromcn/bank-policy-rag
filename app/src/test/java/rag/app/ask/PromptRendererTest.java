@@ -89,4 +89,16 @@ class PromptRendererTest {
     void v1TemplateStillExistsUnedited() {
         assertThat(PromptRenderer.class.getClassLoader().getResource("prompts/answer.v1.st")).isNotNull();
     }
+
+    @Test
+    void recognisesNoAnswerWithPunctuationAndQuoting() {
+        assertThat(PromptRenderer.isNoAnswer("NO_ANSWER")).isTrue();
+        assertThat(PromptRenderer.isNoAnswer("  NO_ANSWER.\n")).isTrue();
+        assertThat(PromptRenderer.isNoAnswer("`NO_ANSWER`")).isTrue();
+        assertThat(PromptRenderer.isNoAnswer("\"NO_ANSWER\"")).isTrue();
+        assertThat(PromptRenderer.isNoAnswer("NO_ANSWER The sources do not say.")).isTrue();
+        assertThat(PromptRenderer.isNoAnswer("The reply is NO_ANSWER [1].")).isFalse();
+        assertThat(PromptRenderer.isNoAnswer("NO_ANSWER [1]")).isFalse();
+        assertThat(PromptRenderer.isNoAnswer("An answer [1].")).isFalse();
+    }
 }

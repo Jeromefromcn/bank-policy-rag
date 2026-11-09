@@ -51,8 +51,20 @@ public final class Agreement {
         JsonNode items = LabelSheet.read(runDir).path("items");
         List<LabeledPoint> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
+        int entryNumber = 0;
         for (Object entry : entries) {
-            Map<?, ?> m = (Map<?, ?>) entry;
+            entryNumber++;
+            if (!(entry instanceof Map<?, ?> m)) {
+                throw new IllegalArgumentException("entry " + entryNumber + " in " + labelsFile + " is not a mapping");
+            }
+            for (String field : List.of("itemId", "pointIndex", "humanVerdict")) {
+                if (m.get(field) == null) {
+                    throw new IllegalArgumentException("entry " + entryNumber + " in " + labelsFile + " lacks " + field);
+                }
+            }
+            if (!(m.get("pointIndex") instanceof Number)) {
+                throw new IllegalArgumentException("entry " + entryNumber + ": pointIndex must be a number");
+            }
             String itemId = String.valueOf(m.get("itemId"));
             int index = ((Number) m.get("pointIndex")).intValue();
             if (!seen.add(itemId + "/" + index)) {

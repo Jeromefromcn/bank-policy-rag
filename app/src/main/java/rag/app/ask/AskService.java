@@ -78,7 +78,7 @@ public class AskService {
         String answer = response.getResult().getOutput().getText();
         answer = answer == null ? "" : answer.strip();
 
-        if (answer.isEmpty() || answer.equals(PromptRenderer.NO_ANSWER)) {
+        if (answer.isEmpty() || PromptRenderer.isNoAnswer(answer)) {
             return refused(answerId, LOW_RETRIEVAL_SCORE, "model declined (NO_ANSWER or empty)", responseUsage, retrievalMs,
                     generationMs);
         }

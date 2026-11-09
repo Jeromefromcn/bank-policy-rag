@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -26,14 +27,24 @@ public final class JudgeClient {
 
     private static final int ATTEMPTS = 2;
 
+    private static final Duration DEFAULT_RETRY_DELAY = Duration.ofSeconds(2);
+
     private final ApiHttp http;
+    private final URI base;
     private final String model;
     private final JudgeCache cache;
+    private final Duration retryDelay;
 
     public JudgeClient(URI base, String apiKey, String model, JudgeCache cache) {
+        this(base, apiKey, model, cache, DEFAULT_RETRY_DELAY);
+    }
+
+    public JudgeClient(URI base, String apiKey, String model, JudgeCache cache, Duration retryDelay) {
         this.http = new ApiHttp(base, "Authorization", "Bearer " + apiKey);
+        this.base = base;
         this.model = model;
         this.cache = cache;
+        this.retryDelay = retryDelay;
     }
 
     public String model() {
@@ -69,12 +80,14 @@ public final class JudgeClient {
 
     private List<JudgeVerdict> judge(String promptVersion, Map<String, Object> input, int expected) {
         String inputJson = ApiHttp.JSON.writeValueAsString(input);
-        String key = JudgeCache.key(promptVersion, model, inputJson);
+        String template = template(promptVersion);
+        // The key covers the template text and the endpoint, so editing a prompt in place or switching provider misses.
+        String key = JudgeCache.key(promptVersion + "#" + JudgeCache.key(template, base.toString(), ""), model, inputJson);
         Optional<List<JudgeVerdict>> cached = cache.get(key).flatMap(c -> parse(c, expected));
         if (cached.isPresent()) {
             return cached.get();
         }
-        String prompt = template(promptVersion) + "\n\nINPUT:\n" + inputJson;
+        String prompt = template + "\n\nINPUT:\n" + inputJson;
         Map<String, Object> request = new LinkedHashMap<>();
         request.put("model", model);
         request.put("temperature", 0);
@@ -92,8 +105,19 @@ public final class JudgeClient {
             } catch (RuntimeException e) {
                 // HTTP or transport failure: retry, then record ERROR
             }
+            if (attempt < ATTEMPTS - 1) {
+                pause();
+            }
         }
         return Collections.nCopies(expected, JudgeVerdict.ERROR);
+    }
+
+    private void pause() {
+        try {
+            Thread.sleep(retryDelay.toMillis());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private static Optional<List<JudgeVerdict>> parse(String content, int expected) {

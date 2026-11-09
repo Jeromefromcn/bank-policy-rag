@@ -71,11 +71,13 @@ if [[ "$dry" -eq 0 ]]; then
   RAG_SECURITY_APIKEYS_2_KEY="$RAG_KEY_PUBLIC" RAG_SECURITY_APIKEYS_2_PRINCIPAL=eval-public RAG_SECURITY_APIKEYS_2_CLEARANCE=public \
     java -Xmx1g -jar "$jar" --server.port="$port" > "$out/generation-$step.app.log" 2>&1 &
   app_pid=$!
+  ready=0
   for _ in $(seq 120); do
-    curl -sf "http://127.0.0.1:$port/actuator/health" >/dev/null 2>&1 && break
+    if curl -sf "http://127.0.0.1:$port/actuator/health" >/dev/null 2>&1; then ready=1; break; fi
     kill -0 "$app_pid" 2>/dev/null || { echo "error: app exited; see $out/generation-$step.app.log" >&2; exit 1; }
     sleep 2
   done
+  [[ "$ready" -eq 1 ]] || { echo "error: app not healthy after 240s; see $out/generation-$step.app.log" >&2; exit 1; }
 fi
 
 if [[ "$step" == "sweep" ]]; then
