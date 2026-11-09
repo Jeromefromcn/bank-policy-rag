@@ -18,10 +18,12 @@ class HttpRerankerTest {
 
     private HttpServer server;
     private final AtomicReference<String> lastBody = new AtomicReference<>();
+    private final AtomicReference<String> lastContentLength = new AtomicReference<>();
 
     private HttpReranker start(int status, String body, long delayMs, Duration timeout) throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/v1/rerank", ex -> {
+            lastContentLength.set(ex.getRequestHeaders().getFirst("Content-Length"));
             lastBody.set(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             try {
                 Thread.sleep(delayMs);
@@ -64,6 +66,15 @@ class HttpRerankerTest {
                 {"results":[{"index":0,"relevance_score":1.0},{"index":1,"relevance_score":0.5}]}""");
         r.score("the query", List.of("a", "b"));
         assertThat(lastBody.get()).contains("\"top_n\":2").contains("\"query\":\"the query\"").contains("\"documents\":[\"a\",\"b\"]");
+    }
+
+    @Test
+    void sendsContentLengthNotChunked() throws IOException {
+        var r = start("""
+                {"results":[{"index":0,"relevance_score":1.0}]}""");
+        r.score("q", List.of("a"));
+        assertThat(lastContentLength.get()).isNotNull();
+        assertThat(Integer.parseInt(lastContentLength.get())).isEqualTo(lastBody.get().getBytes(StandardCharsets.UTF_8).length);
     }
 
     @Test

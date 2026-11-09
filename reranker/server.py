@@ -37,12 +37,24 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._send(404, {"error": "not found"})
 
+    def _body(self):
+        if self.headers.get("transfer-encoding", "").lower() == "chunked":
+            parts = []
+            while True:
+                size = int(self.rfile.readline().split(b";")[0].strip(), 16)
+                if size == 0:
+                    self.rfile.readline()
+                    return b"".join(parts)
+                parts.append(self.rfile.read(size))
+                self.rfile.readline()
+        return self.rfile.read(int(self.headers.get("content-length", "0")))
+
     def do_POST(self):
         if self.path != "/v1/rerank":
             self._send(404, {"error": "not found"})
             return
         try:
-            req = json.loads(self.rfile.read(int(self.headers.get("content-length", "0"))))
+            req = json.loads(self._body())
             query, docs = req["query"], req["documents"]
             if not isinstance(query, str) or not isinstance(docs, list) or not all(isinstance(d, str) for d in docs):
                 raise ValueError("query must be a string and documents a list of strings")

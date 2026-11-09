@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -34,7 +35,8 @@ public class HttpReranker implements Reranker {
         var http = HttpClient.newBuilder().connectTimeout(cfg.timeout()).build();
         var factory = new JdkClientHttpRequestFactory(http);
         factory.setReadTimeout(cfg.timeout());
-        this.client = RestClient.builder().baseUrl(cfg.url()).requestFactory(factory).build();
+        // Buffered so the request carries Content-Length: the sidecar's HTTP server does not read chunked bodies.
+        this.client = RestClient.builder().baseUrl(cfg.url()).requestFactory(new BufferingClientHttpRequestFactory(factory)).build();
     }
 
     @Override
