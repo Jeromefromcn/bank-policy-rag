@@ -20,13 +20,22 @@ final class StubServer implements AutoCloseable {
     volatile String searchBody = """
             {"queryId":"q_1","hits":[
               {"chunkId":"c1","docId":"eb-a","sectionPath":["1"],"coveredSections":["1"],"text":"t"},
-              {"chunkId":"c2","docId":"eb-b","sectionPath":["2"],"coveredSections":["2"],"text":"t"}]}""";
+              {"chunkId":"c2","docId":"eb-b","sectionPath":["2"],"coveredSections":["2"],"text":"t"}],
+             "diagnostics":{"bestVectorSimilarity":0.8}}""";
+    volatile int askStatus = 200;
+    volatile String askBody = """
+            {"answerId":"a_1","status":"ANSWERED","refusalReason":null,"answer":"An answer [1].",
+             "citations":[{"ref":1,"chunkId":"c1","docId":"eb-a","sectionPath":["1"],"pages":[],"quote":"q"}],
+             "usage":{"promptTokens":100,"completionTokens":10},"latencyMs":{"retrieval":5,"rerank":0,"generation":42}}""";
+    /** When set, builds the {@code /v1/search} response from the request body (to vary similarity per question). */
+    volatile java.util.function.Function<String, String> searchResponder;
     volatile String infoBody = """
             {"rag":{"corpusVersion":"abc123","chunkerVersion":"fixed-512-64-cl100k","embeddingModel":"ollama/nomic-embed-text","index":"x"}}""";
 
     StubServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/v1/search", ex -> respond(ex, searchStatus, searchBody));
+        server.createContext("/v1/search", ex -> respond(ex, searchStatus, null));
+        server.createContext("/v1/ask", ex -> respond(ex, askStatus, askBody));
         server.createContext("/actuator/info", ex -> respond(ex, 200, infoBody));
         server.start();
     }
@@ -38,6 +47,10 @@ final class StubServer implements AutoCloseable {
     private synchronized void respond(HttpExchange ex, int status, String body) throws IOException {
         requests.add(new Request(ex.getRequestURI().getPath(), ex.getRequestHeaders().getFirst("X-Api-Key"),
                 new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8)));
+        String requestBody = requests.getLast().body();
+        if (body == null) {
+            body = searchResponder != null ? searchResponder.apply(requestBody) : searchBody;
+        }
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         ex.getResponseHeaders().add("Content-Type", status == 200 ? "application/json" : "application/problem+json");
         ex.sendResponseHeaders(status, bytes.length);

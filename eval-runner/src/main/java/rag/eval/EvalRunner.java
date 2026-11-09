@@ -40,7 +40,7 @@ public final class EvalRunner {
         for (String a : args) {
             int eq = a.indexOf('=');
             if (!a.startsWith("--") || eq < 0) {
-                out.println("usage: --base-url=URL [--split=all|dev|test] [--mode=VECTOR|BM25|HYBRID] [--golden=…] [--corpus=…] [--out=…]");
+                out.println("usage: --base-url=URL [--split=all|dev|test] [--mode=VECTOR|BM25|HYBRID] [--sweep=true] [--golden=…] [--corpus=…] [--out=…]");
                 return 2;
             }
             opts.put(a.substring(2, eq), a.substring(eq + 1));
@@ -72,6 +72,14 @@ public final class EvalRunner {
                     out.println("error: /actuator/info has no " + required + "; is the chunks index ingested?");
                     return 1;
                 }
+            }
+
+            if (opts.getOrDefault("sweep", "false").equals("true")) {
+                var observations = Sweep.collect(items, KeySet.fromEnv(env), URI.create(opts.get("base-url")), mode);
+                Path dir = Path.of(opts.get("out")).resolve(RUN_ID.format(Instant.now()) + "-sweep");
+                Sweep.write(dir, RunMetadata.collect(opts.get("base-url"), info, "dev", mode, 0), Sweep.table(observations));
+                out.println("wrote " + dir.resolve("sweep.md") + " (" + observations.size() + " observations)");
+                return 0;
             }
 
             List<ItemResult> results = new ArrayList<>();

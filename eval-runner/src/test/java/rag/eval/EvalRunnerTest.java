@@ -126,4 +126,19 @@ class EvalRunnerTest {
             assertThat(stub.requests).isEmpty();
         }
     }
+
+    @Test
+    void sweepWritesDevOnlyTableWithoutAskingTheModel() throws Exception {
+        try (var stub = new StubServer()) {
+            assertThat(run(stub, KeySetTest.ENV, "--sweep=true")).isZero();
+
+            assertThat(stub.requests).extracting(StubServer.Request::path).doesNotContain("/v1/ask");
+            try (var dirs = Files.list(tmp.resolve("runs"))) {
+                Path dir = dirs.findFirst().orElseThrow();
+                assertThat(dir.getFileName().toString()).endsWith("-sweep");
+                assertThat(Files.readString(dir.resolve("sweep.md"))).contains("| 0.50 |");
+                assertThat(Files.exists(dir.resolve("sweep.json"))).isTrue();
+            }
+        }
+    }
 }
