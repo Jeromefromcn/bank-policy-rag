@@ -9,7 +9,8 @@
 # Retrieval runs repeat every item 3 times for latency; --sweep runs the rerank-score threshold sweep on dev instead.
 # Needs ES_PASSWORD and RAG_KEY_DEV (from .env). Throw-away keys for the internal and public callers are generated per
 # run and never printed. Env: RAG_ENV_PREFIX (default rag_dev), RERANK_PORT (default 18082),
-# RERANKER_URL (default http://127.0.0.1:18090).
+# RERANKER_URL (default http://127.0.0.1:18090), RAG_RERANK_TIMEOUT (default 5s; 600s for bge, whose calls take tens of seconds
+# on 2 CPUs).
 set -euo pipefail
 
 usage() { echo "usage: $0 [--dry-run] none|minilm|bge [--split=dev|test|all] [--sweep]" >&2; exit 2; }
@@ -31,9 +32,9 @@ done
 [[ "$sweep" -eq 0 || "$variant" != none ]] || { echo "error: --sweep needs a reranker (minilm or bge)" >&2; exit 2; }
 
 case "$variant" in
-  minilm) model="cross-encoder/ms-marco-MiniLM-L6-v2" ;;
-  bge) model="BAAI/bge-reranker-v2-m3" ;;
-  none) model="" ;;
+  minilm) model="cross-encoder/ms-marco-MiniLM-L6-v2"; timeout="${RAG_RERANK_TIMEOUT:-5s}" ;;
+  bge) model="BAAI/bge-reranker-v2-m3"; timeout="${RAG_RERANK_TIMEOUT:-600s}" ;;
+  none) model=""; timeout="${RAG_RERANK_TIMEOUT:-5s}" ;;
 esac
 
 cd "$(cd "$(dirname "$0")/.." && pwd)"
@@ -80,10 +81,10 @@ stop_app() {
 trap stop_app EXIT
 
 key_vars="RAG_SECURITY_APIKEYS_{0,1,2}_{KEY,PRINCIPAL,CLEARANCE}"
-echo "+ START nomic: RAG_ENV_PREFIX=$prefix RAG_EMBEDDING_MODEL=nomic RAG_CHUNKS_INDEX=$chunks RAG_SECTIONS_INDEX=$sections RERANKER_URL=$reranker_url $key_vars java -Xmx1g -jar $jar --server.port=$port"
+echo "+ START nomic: RAG_ENV_PREFIX=$prefix RAG_EMBEDDING_MODEL=nomic RAG_CHUNKS_INDEX=$chunks RAG_SECTIONS_INDEX=$sections RERANKER_URL=$reranker_url RAG_RERANK_TIMEOUT=$timeout $key_vars java -Xmx1g -jar $jar --server.port=$port"
 if [[ "$dry" -eq 0 ]]; then
   RAG_ENV_PREFIX="$prefix" RAG_EMBEDDING_MODEL=nomic RAG_CHUNKS_INDEX="$chunks" RAG_SECTIONS_INDEX="$sections" \
-  RERANKER_URL="$reranker_url" \
+  RERANKER_URL="$reranker_url" RAG_RERANK_TIMEOUT="$timeout" \
   RAG_SECURITY_APIKEYS_0_KEY="$RAG_KEY_DEV" RAG_SECURITY_APIKEYS_0_PRINCIPAL=dev RAG_SECURITY_APIKEYS_0_CLEARANCE=restricted \
   RAG_SECURITY_APIKEYS_1_KEY="$RAG_KEY_INTERNAL" RAG_SECURITY_APIKEYS_1_PRINCIPAL=eval-internal RAG_SECURITY_APIKEYS_1_CLEARANCE=internal \
   RAG_SECURITY_APIKEYS_2_KEY="$RAG_KEY_PUBLIC" RAG_SECURITY_APIKEYS_2_PRINCIPAL=eval-public RAG_SECURITY_APIKEYS_2_CLEARANCE=public \
