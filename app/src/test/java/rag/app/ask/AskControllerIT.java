@@ -128,9 +128,9 @@ class AskControllerIT extends IntegrationTest {
     }
 
     @Test
-    void conversationIdRejected() {
-        JsonNode r = ask(KEY, Map.of("question", QUERY, "conversationId", "c1"), 400);
-        assertThat(r.get("type").asString()).isEqualTo("urn:rag:problem:invalid-request");
+    void unknownConversationIdIs404() {
+        JsonNode r = ask(KEY, Map.of("question", QUERY, "conversationId", "c1"), 404);
+        assertThat(r.get("type").asString()).isEqualTo("urn:rag:problem:not-found");
     }
 
     @Test

@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.stereotype.Component;
 import rag.app.RagProperties;
 import rag.app.security.Principal;
@@ -19,6 +20,7 @@ import rag.app.security.Principal;
  * <p>A small bounded map in access order behind one lock: simplicity over throughput.
  */
 @Component
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class ConversationStore {
 
     private final RagProperties.Conversation limits;

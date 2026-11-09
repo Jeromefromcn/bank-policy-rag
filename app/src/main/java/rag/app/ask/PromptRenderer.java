@@ -79,11 +79,12 @@ public class PromptRenderer {
     }
 
     /** A source must not be able to close or open a fence: any run of three or more '<' is replaced by U+2039 marks. */
-    static String neutralise(String text) {
+    public static String neutralise(String text) {
         return FENCE_LIKE.matcher(text).replaceAll("\u2039\u2039\u2039");
     }
 
-    private static String load(String resource) {
+    /** Reads a prompt template from the classpath with LF line endings. */
+    public static String load(String resource) {
         try (InputStream in = PromptRenderer.class.getClassLoader().getResourceAsStream(resource)) {
             if (in == null) {
                 throw new IllegalStateException("missing prompt template " + resource);

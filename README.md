@@ -125,6 +125,11 @@ Optional cross-encoder rerank (Phase 4): `docker compose --profile rerank up -d 
 Python sidecar on `127.0.0.1:18090` (`cross-encoder/ms-marco-MiniLM-L6-v2` by default; weights are downloaded on
 first start). `scripts/rerank-parity/run.sh minilm` checks its scores against the reference library.
 
+Multi-turn `/v1/ask`: every response carries a `conversationId`; send it back with a follow-up and the service
+rewrites the follow-up into a standalone query before retrieval (`rewrittenQuery` in the response). Conversations
+live in memory only: they are lost on restart, expire after 30 minutes idle, and are visible only to the caller that
+started them (any other caller gets `404`).
+
 ## Evaluation results
 
 | Phase | Configuration | Recall@5 | MRR | nDCG@10 | Notes |

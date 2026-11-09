@@ -24,10 +24,8 @@ public class AskController {
         if (request.question() == null || request.question().isBlank()) {
             throw ApiException.invalid("question must not be blank");
         }
-        if (request.conversationId() != null) {
-            throw ApiException.invalid("conversationId is not supported yet");
-        }
         var options = SearchRequest.validateRetrievalOptions(request.topK(), request.mode(), request.rerank());
-        return service.ask(request.question(), options.topK(), options.mode(), options.rerank(), principal);
+        return service.ask(request.question(), options.topK(), options.mode(), options.rerank(),
+                request.conversationId(), principal);
     }
 }

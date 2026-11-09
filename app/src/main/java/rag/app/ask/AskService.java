@@ -11,19 +11,24 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.stereotype.Service;
 import rag.app.RagProperties;
+import rag.app.conversation.ConversationStore;
+import rag.app.conversation.QueryRewriter;
+import rag.app.conversation.Turn;
 import rag.app.search.RetrievalPipeline;
 import rag.app.search.Mode;
 import rag.app.search.SearchHit;
 import rag.app.security.Principal;
+import rag.app.web.ApiException;
 import rag.core.cite.CitationReport;
 import rag.core.cite.CitationValidator;
 
 /**
- * Grounded answer (spec 03, spec 04 §4-§5): retrieve (optionally reranked), refuse below the similarity gate or the
+ * Grounded answer (spec 03, spec 04 §4-§6): resolve the conversation and rewrite a follow-up, retrieve (optionally reranked), refuse below the similarity gate or the
  * rerank gate without calling the model, render
  * {@code answer.v2}, treat {@code NO_ANSWER} as a refusal, validate citations, return only cited sources.
  * The external refusal reason never reveals whether sources were inaccessible or absent (spec 00 §7 rule 2);
- * the true internal cause is logged.
+ * the true internal cause is logged. A turn is stored only when the request completes; a failed rewrite or answer
+ * call (503) stores nothing.
  */
 @Service
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
@@ -41,9 +46,14 @@ public class AskService {
     private final double minSimilarity;
     private final double minRerankProbability;
     private final CitationValidator validator;
+    private final ConversationStore conversations;
+    private final QueryRewriter rewriter;
 
-    public AskService(RetrievalPipeline retriever, PromptRenderer renderer, ChatModel chat, RagProperties props) {
+    public AskService(RetrievalPipeline retriever, PromptRenderer renderer, ChatModel chat, RagProperties props,
+            ConversationStore conversations, QueryRewriter rewriter) {
         this.retriever = retriever;
+        this.conversations = conversations;
+        this.rewriter = rewriter;
         this.renderer = renderer;
         this.chat = chat;
         this.minSimilarity = props.ask().minSimilarity();
@@ -51,8 +61,31 @@ public class AskService {
         this.validator = new CitationValidator(props.ask().minOverlap());
     }
 
-    public AskResponse ask(String question, int topK, Mode mode, boolean rerank, Principal principal) {
+    public AskResponse ask(String question, int topK, Mode mode, boolean rerank, String conversationId,
+            Principal principal) {
+        List<Turn> history = conversationId == null ? List.of()
+                : conversations.history(conversationId, principal).orElseThrow(ApiException::notFound);
         String answerId = "a_" + UlidCreator.getMonotonicUlid();
+
+        QueryRewriter.Rewrite rewrite = history.isEmpty() ? null : rewriter.rewrite(history, question);
+        String query = rewrite == null ? question : rewrite.query();
+        if (rewrite != null) {
+            LOG.info("answer {} rewritten query{}: {}", answerId, rewrite.fellBack() ? " (fell back to original)" : "", query);
+        }
+
+        AskResponse r = answer(answerId, query, topK, mode, rerank, principal);
+
+        String id = conversationId == null ? conversations.create(principal) : conversationId;
+        conversations.append(id, principal, new Turn(question, rewrite == null ? null : query, r.status(), r.answer()));
+        var usage = rewrite == null ? r.usage() : r.usage().plus(rewrite.promptTokens(), rewrite.completionTokens());
+        var latency = r.latencyMs();
+        return new AskResponse(r.answerId(), r.status(), r.refusalReason(), r.answer(), r.citations(), usage,
+                new AskResponse.Latency(latency.retrieval(), latency.rerank(), latency.generation(),
+                        rewrite == null ? 0 : rewrite.latencyMs()),
+                id, rewrite == null ? null : query);
+    }
+
+    private AskResponse answer(String answerId, String question, int topK, Mode mode, boolean rerank, Principal principal) {
         var outcome = retriever.retrieve(question, topK, mode, rerank, principal);
         long retrievalMs = outcome.retrievalMs();
         long rerankMs = outcome.rerankMs();
@@ -107,14 +140,14 @@ public class AskService {
             citations.add(new AskResponse.Citation(ref, h.chunkId(), h.docId(), h.sectionPath(), h.pages(), quote));
         }
         return new AskResponse(answerId, "ANSWERED", null, answer, citations, responseUsage,
-                new AskResponse.Latency(retrievalMs, rerankMs, generationMs));
+                new AskResponse.Latency(retrievalMs, rerankMs, generationMs, 0), null, null);
     }
 
     private static AskResponse refused(String answerId, String reason, String internalCause, AskResponse.Usage usage,
             long retrievalMs, long rerankMs, long generationMs) {
         LOG.info("answer {} refused ({}): {}", answerId, reason, internalCause);
         return new AskResponse(answerId, "REFUSED", reason, null, List.of(), usage == null ? new AskResponse.Usage(null, null) : usage,
-                new AskResponse.Latency(retrievalMs, rerankMs, generationMs));
+                new AskResponse.Latency(retrievalMs, rerankMs, generationMs, 0), null, null);
     }
 
     private static long ms(long t0) {

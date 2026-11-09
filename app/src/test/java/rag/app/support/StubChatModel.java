@@ -1,6 +1,8 @@
 package rag.app.support;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
@@ -10,11 +12,15 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 
-/** Records prompts and answers "Answer [1]." with usage 100/10; can be told to fail. */
+/**
+ * Records prompts and answers "Answer [1]." with usage 100/10. Queued replies are used first, one per call;
+ * {@link #failNext()} fails the next call only.
+ */
 public class StubChatModel implements ChatModel {
 
     private final List<Prompt> prompts = new ArrayList<>();
     private volatile boolean fail;
+    private final Deque<String> queued = new ArrayDeque<>();
     private volatile String reply = DEFAULT_REPLY;
     public static final String DEFAULT_REPLY = "Answer [1].";
 
@@ -22,10 +28,12 @@ public class StubChatModel implements ChatModel {
     public synchronized ChatResponse call(Prompt prompt) {
         prompts.add(prompt);
         if (fail) {
+            fail = false;
             throw new IllegalStateException("stub LLM failure");
         }
+        String text = queued.isEmpty() ? reply : queued.removeFirst();
         var metadata = ChatResponseMetadata.builder().usage(new DefaultUsage(100, 10)).build();
-        return new ChatResponse(List.of(new Generation(new AssistantMessage(reply))), metadata);
+        return new ChatResponse(List.of(new Generation(new AssistantMessage(text))), metadata);
     }
 
     public synchronized int calls() {
@@ -36,8 +44,18 @@ public class StubChatModel implements ChatModel {
         return prompts.getLast();
     }
 
+    public synchronized List<Prompt> prompts() {
+        return List.copyOf(prompts);
+    }
+
+    /** Replies for the next calls, in order; afterwards the fixed reply applies again. */
+    public synchronized void replies(String... texts) {
+        queued.addAll(List.of(texts));
+    }
+
     public synchronized void reset() {
         prompts.clear();
+        queued.clear();
         fail = false;
         reply = DEFAULT_REPLY;
     }
