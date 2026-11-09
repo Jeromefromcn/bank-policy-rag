@@ -48,6 +48,11 @@ rag:
       min-tokens: 60
   corpus:
     root: corpus
+  rerank:
+    url: ${RERANKER_URL:http://127.0.0.1:18090}
+    candidates: 20
+    max-passage-tokens: 256
+    timeout: 5s
   ask:
     # 0 = gate off. The value comes from decisions/03 (spec 03 §3.2).
     min-similarity: ${RAG_ASK_MIN_SIMILARITY:0.0}

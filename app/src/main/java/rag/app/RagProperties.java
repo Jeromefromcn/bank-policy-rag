@@ -9,10 +9,12 @@ import rag.core.model.Clearance;
 /** Every limit, threshold and model id is a property (spec 00 §5). Defaults live in application.yaml. */
 @ConfigurationProperties("rag")
 public record RagProperties(
-        String envPrefix, Security security, Embedding embedding, Retrieval retrieval, Chunking chunking, Corpus corpus, Ask ask) {
+        String envPrefix, Security security, Embedding embedding, Retrieval retrieval, Chunking chunking, Corpus corpus, Ask ask,
+        Rerank rerank) {
 
     public RagProperties {
         ask = ask == null ? new Ask(0.0, 0.5) : ask;
+        rerank = rerank == null ? new Rerank("http://127.0.0.1:18090", 20, 256, java.time.Duration.ofSeconds(5)) : rerank;
     }
 
 
@@ -75,4 +77,14 @@ public record RagProperties(
      * @param minOverlap    lexical-overlap flag threshold of the citation validator (soft: never refuses)
      */
     public record Ask(double minSimilarity, double minOverlap) {}
+
+    /**
+     * Cross-encoder rerank (spec 04 §4).
+     *
+     * @param url               reranker sidecar base URL
+     * @param candidates        hits retrieved before reranking (raised to {@code topK} when that is larger)
+     * @param maxPassageTokens  cl100k tokens of each candidate sent to the reranker
+     * @param timeout           connect and read timeout of one reranker call
+     */
+    public record Rerank(String url, int candidates, int maxPassageTokens, java.time.Duration timeout) {}
 }

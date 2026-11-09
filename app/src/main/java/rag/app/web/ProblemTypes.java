@@ -11,6 +11,7 @@ public final class ProblemTypes {
     public static final URI NOT_FOUND = URI.create("urn:rag:problem:not-found");
     public static final URI EMBEDDING_UNAVAILABLE = URI.create("urn:rag:problem:embedding-unavailable");
     public static final URI GENERATION_UNAVAILABLE = URI.create("urn:rag:problem:generation-unavailable");
+    public static final URI RERANKER_UNAVAILABLE = URI.create("urn:rag:problem:reranker-unavailable");
 
     private ProblemTypes() {}
 }
