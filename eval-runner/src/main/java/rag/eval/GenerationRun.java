@@ -24,8 +24,14 @@ public final class GenerationRun {
 
     public record SentenceOutcome(String text, List<Integer> refs, double overlap, boolean flagged, JudgeVerdict verdict) {}
 
+    /** @param sources cited-source text by citation order; kept for the human label sheet, never in committed reports */
     public record ItemOutcome(GoldenItem item, Kind kind, AskResult ask, List<JudgeVerdict> pointVerdicts,
-            List<SentenceOutcome> sentences) {}
+            List<SentenceOutcome> sentences, List<String> sources) {
+
+        public ItemOutcome(GoldenItem item, Kind kind, AskResult ask, List<JudgeVerdict> pointVerdicts, List<SentenceOutcome> sentences) {
+            this(item, kind, ask, pointVerdicts, sentences, List.of());
+        }
+    }
 
     private GenerationRun() {}
 
@@ -82,7 +88,7 @@ public final class GenerationRun {
             var s = report.sentences().get(i);
             sentences.add(new SentenceOutcome(s.text(), s.refs(), s.overlap(), s.flagged(), verdicts.get(i)));
         }
-        return new ItemOutcome(item, Kind.ANSWERABLE, ask, points, sentences);
+        return new ItemOutcome(item, Kind.ANSWERABLE, ask, points, sentences, sources);
     }
 
     /** Sources in citation order (index = ref - 1); uncited positions hold a placeholder. Null if a cited chunk is missing. */

@@ -46,10 +46,13 @@ public final class EvalRunner {
         for (String a : args) {
             int eq = a.indexOf('=');
             if (!a.startsWith("--") || eq < 0) {
-                out.println("usage: --base-url=URL [--split=all|dev|test] [--mode=VECTOR|BM25|HYBRID] [--sweep=true] [--generation=true --judge-model=… --judge-url=… --judge-cache=… --min-overlap=…] [--golden=…] [--corpus=…] [--out=…]");
+                out.println("usage: --base-url=URL [--split=all|dev|test] [--mode=VECTOR|BM25|HYBRID] [--sweep=true] [--export-labels=RUN_DIR [--seed=N] [--n=20]] [--agreement=RUN_DIR [--labels=FILE]] [--generation=true --judge-model=… --judge-url=… --judge-cache=… --min-overlap=…] [--golden=…] [--corpus=…] [--out=…]");
                 return 2;
             }
             opts.put(a.substring(2, eq), a.substring(eq + 1));
+        }
+        if (opts.containsKey("export-labels") || opts.containsKey("agreement")) {
+            return labelTools(opts, out);
         }
         boolean generation = opts.getOrDefault("generation", "false").equals("true");
         String judgeKey = env.get("DEEPSEEK_API_KEY");
@@ -128,6 +131,28 @@ public final class EvalRunner {
             Path dir = Path.of(opts.get("out")).resolve(RUN_ID.format(Instant.now()));
             new ReportWriter().write(dir, meta, results);
             out.println("wrote " + dir.resolve("report.md") + " (" + results.size() + " items, " + skipped + " unanswerable skipped)");
+            return 0;
+        } catch (RuntimeException e) {
+            out.println("error: " + e.getMessage());
+            return 1;
+        }
+    }
+
+    /** {@code --export-labels=RUN_DIR} writes the blind sheet; {@code --agreement=RUN_DIR} scores the author's labels. */
+    private static int labelTools(Map<String, String> opts, PrintStream out) {
+        try {
+            if (opts.containsKey("export-labels")) {
+                Path sheet = Path.of(opts.getOrDefault("label-sheet", "eval/.human-labels-sheet.md"));
+                var sample = LabelSheet.export(Path.of(opts.get("export-labels")), Long.parseLong(opts.getOrDefault("seed", "1")),
+                        Integer.parseInt(opts.getOrDefault("n", "20")), sheet);
+                out.println("wrote " + sheet + " (" + sample.size() + " points; label them in eval/human-labels.yaml)");
+                return 0;
+            }
+            var points = Agreement.load(Path.of(opts.getOrDefault("labels", "eval/human-labels.yaml")), Path.of(opts.get("agreement")),
+                    Integer.parseInt(opts.getOrDefault("n", "20")));
+            var r = Agreement.compute(points);
+            out.printf("judge-human agreement: %d/%d = %.3f, Cohen's kappa = %s%n", r.agree(), r.n(), r.agreement(),
+                    r.kappa() == null ? "undefined" : String.format("%.3f", r.kappa()));
             return 0;
         } catch (RuntimeException e) {
             out.println("error: " + e.getMessage());

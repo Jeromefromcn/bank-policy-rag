@@ -62,7 +62,11 @@ public final class GenerationReport {
     private static Map<String, Object> answerRow(ItemOutcome o) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", o.item().id());
+        row.put("category", o.item().category());
+        row.put("question", o.item().question());
         row.put("kind", o.kind());
+        row.put("points", o.item().expectedPoints());
+        row.put("sources", o.sources());
         row.put("ask", o.ask());
         row.put("pointVerdicts", o.pointVerdicts());
         row.put("sentences", o.sentences());
