@@ -21,6 +21,8 @@ public class StubChatModel implements ChatModel {
     private final List<Prompt> prompts = new ArrayList<>();
     private volatile boolean fail;
     private final Deque<String> queued = new ArrayDeque<>();
+    private volatile org.springframework.ai.chat.prompt.ChatOptions defaultOptions =
+            org.springframework.ai.chat.prompt.ChatOptions.builder().build();
     private volatile String reply = DEFAULT_REPLY;
     public static final String DEFAULT_REPLY = "Answer [1].";
 
@@ -34,6 +36,16 @@ public class StubChatModel implements ChatModel {
         String text = queued.isEmpty() ? reply : queued.removeFirst();
         var metadata = ChatResponseMetadata.builder().usage(new DefaultUsage(100, 10)).build();
         return new ChatResponse(List.of(new Generation(new AssistantMessage(text))), metadata);
+    }
+
+    @Override
+    public org.springframework.ai.chat.prompt.ChatOptions getDefaultOptions() {
+        return defaultOptions;
+    }
+
+    /** Provider-specific defaults, to check that callers keep the provider's options type. */
+    public void defaultOptions(org.springframework.ai.chat.prompt.ChatOptions options) {
+        defaultOptions = options;
     }
 
     public synchronized int calls() {

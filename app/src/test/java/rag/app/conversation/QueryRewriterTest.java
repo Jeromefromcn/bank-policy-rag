@@ -94,4 +94,16 @@ class QueryRewriterTest {
         assertThat(options.getTemperature()).isEqualTo(0.0);
         assertThat(options.getMaxTokens()).isEqualTo(128);
     }
+
+    @Test
+    void keepsTheModelsOwnOptionsType() {
+        // DeepSeekChatModel casts the prompt options to DeepSeekChatOptions; generic ChatOptions fail at runtime.
+        chat.defaultOptions(org.springframework.ai.deepseek.DeepSeekChatOptions.builder().model("deepseek-x").build());
+        rewriter.rewrite(List.of(new Turn("q", null, "ANSWERED", "a")), "f");
+        var options = chat.lastPrompt().getOptions();
+        assertThat(options).isInstanceOf(org.springframework.ai.deepseek.DeepSeekChatOptions.class);
+        assertThat(options.getModel()).isEqualTo("deepseek-x");
+        assertThat(options.getTemperature()).isEqualTo(0.0);
+        assertThat(options.getMaxTokens()).isEqualTo(128);
+    }
 }

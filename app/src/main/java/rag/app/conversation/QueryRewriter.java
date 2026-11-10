@@ -99,7 +99,10 @@ public class QueryRewriter {
             m.appendReplacement(out, Matcher.quoteReplacement(values.get(m.group(1))));
         }
         m.appendTail(out);
-        ChatOptions options = ChatOptions.builder().temperature(0.0).maxTokens(MAX_TOKENS).build();
+        // Start from the model's own defaults so the provider keeps its options type (DeepSeekChatModel casts them).
+        ChatOptions defaults = chat.getDefaultOptions();
+        ChatOptions options = (defaults == null ? ChatOptions.builder() : defaults.mutate())
+                .temperature(0.0).maxTokens(MAX_TOKENS).build();
         return new Prompt(List.of(new SystemMessage(system), new UserMessage(out.toString())), options);
     }
 }
