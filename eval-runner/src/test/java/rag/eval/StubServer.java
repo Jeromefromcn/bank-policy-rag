@@ -27,6 +27,8 @@ final class StubServer implements AutoCloseable {
             {"answerId":"a_1","status":"ANSWERED","refusalReason":null,"answer":"An answer [1].",
              "citations":[{"ref":1,"chunkId":"c1","docId":"eb-a","sectionPath":["1"],"pages":[],"quote":"q"}],
              "usage":{"promptTokens":100,"completionTokens":10},"latencyMs":{"retrieval":5,"rerank":0,"generation":42}}""";
+    /** When set, builds the {@code /v1/ask} response from the request body (multi-turn conversations). */
+    volatile java.util.function.Function<String, String> askResponder;
     /** When set, builds the {@code /v1/search} response from the request body (to vary similarity per question). */
     volatile java.util.function.Function<String, String> searchResponder;
     volatile int judgeStatus = 200;
@@ -38,7 +40,7 @@ final class StubServer implements AutoCloseable {
     StubServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/v1/search", ex -> respond(ex, searchStatus, null));
-        server.createContext("/v1/ask", ex -> respond(ex, askStatus, askBody));
+        server.createContext("/v1/ask", ex -> respond(ex, askStatus, askResponder == null ? askBody : null));
         server.createContext("/chat/completions", ex -> respond(ex, judgeStatus, null));
         server.createContext("/v1/chat/completions", ex -> respond(ex, judgeStatus, null));
         server.createContext("/actuator/info", ex -> respond(ex, 200, infoBody));
@@ -64,6 +66,7 @@ final class StubServer implements AutoCloseable {
         String requestBody = requests.getLast().body();
         if (body == null) {
             body = requests.getLast().path().endsWith("/chat/completions") ? judgeResponder.apply(requestBody)
+                    : requests.getLast().path().equals("/v1/ask") ? askResponder.apply(requestBody)
                     : searchResponder != null ? searchResponder.apply(requestBody) : searchBody;
         }
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);

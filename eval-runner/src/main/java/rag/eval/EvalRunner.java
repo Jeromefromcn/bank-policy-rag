@@ -48,7 +48,7 @@ public final class EvalRunner {
         for (String a : args) {
             int eq = a.indexOf('=');
             if (!a.startsWith("--") || eq < 0) {
-                out.println("usage: --base-url=URL [--split=all|dev|test] [--mode=VECTOR|BM25|HYBRID] [--rerank=true [--reranker-model=ID]] [--repeat=N] [--sweep=true] [--overlap-sweep=RUN_DIR] [--export-labels=RUN_DIR [--seed=N] [--n=20]] [--agreement=RUN_DIR [--labels=FILE]] [--generation=true --judge-model=… --judge-url=… --judge-cache=… --min-overlap=…] [--golden=…] [--corpus=…] [--out=…]");
+                out.println("usage: --base-url=URL [--split=all|dev|test] [--mode=VECTOR|BM25|HYBRID] [--rerank=true [--reranker-model=ID]] [--repeat=N] [--sweep=true] [--overlap-sweep=RUN_DIR] [--export-labels=RUN_DIR [--seed=N] [--n=20]] [--agreement=RUN_DIR [--labels=FILE]] [--multi-turn=true [--multi-turn-file=eval/multi-turn.yaml]] [--generation=true --judge-model=… --judge-url=… --judge-cache=… --min-overlap=…] [--golden=…] [--corpus=…] [--out=…]");
                 return 2;
             }
             opts.put(a.substring(2, eq), a.substring(eq + 1));
@@ -128,6 +128,22 @@ public final class EvalRunner {
                 Path dir = Path.of(opts.get("out")).resolve(RUN_ID.format(Instant.now()) + "-sweep");
                 Sweep.write(dir, RunMetadata.collect(opts.get("base-url"), info, "dev", mode, 0), Sweep.table(observations));
                 out.println("wrote " + dir.resolve("sweep.md") + " (" + observations.size() + " observations)");
+                return 0;
+            }
+
+            if (opts.getOrDefault("multi-turn", "false").equals("true")) {
+                Map<String, GoldenItem> golden = new java.util.LinkedHashMap<>();
+                items.forEach(i -> golden.put(i.id(), i));
+                var multiTurn = MultiTurnSet.load(Path.of(opts.getOrDefault("multi-turn-file", "eval/multi-turn.yaml")), golden);
+                KeySet keys = KeySet.fromEnv(env);
+                keys.require(multiTurn.stream().filter(m -> split.equals("all") || m.split().equals(split))
+                        .map(MultiTurnItem::minClearance).collect(java.util.stream.Collectors.toSet()));
+                info.put("rewritePrompt", "rewrite.v1");
+                var outcomes = MultiTurnRun.run(multiTurn, split, golden, keys,
+                        new MultiTurnRun.Config(URI.create(opts.get("base-url")), mode, rerank, TOP_K));
+                Path dir = Path.of(opts.get("out")).resolve(RUN_ID.format(Instant.now()) + "-multi-turn");
+                MultiTurnReport.write(dir, RunMetadata.collect(opts.get("base-url"), info, split, mode, 0), outcomes);
+                out.println("wrote " + dir.resolve("report.md") + " (" + outcomes.size() + " items)");
                 return 0;
             }
 

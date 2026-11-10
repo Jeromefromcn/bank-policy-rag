@@ -295,4 +295,36 @@ class EvalRunnerTest {
             assertThat(stub.searches()).isZero();
         }
     }
+
+    @Test
+    void multiTurnWritesReportAndRewrites() throws Exception {
+        try (var stub = new StubServer()) {
+            stub.askResponder = body -> """
+                    {"answerId":"a_1","status":"ANSWERED","refusalReason":null,"answer":"A [1].","citations":[],
+                     "usage":{"promptTokens":1,"completionTokens":1},"latencyMs":{"retrieval":1,"rerank":0,"generation":1,"rewrite":3},
+                     "conversationId":"cv_1","rewrittenQuery":"rewritten"}""";
+            Path mt = Files.writeString(tmp.resolve("multi-turn.yaml"), """
+                    - {id: m1, split: dev, turns: [g1], followUp: "And it?", standaloneGoldenId: g1, minClearance: internal}
+                    - {id: m2, split: test, turns: [g3], followUp: "And that?", standaloneGoldenId: g3, minClearance: public}
+                    """);
+            var env = Map.of("RAG_KEY_DEV", "k", "RAG_KEY_INTERNAL", "k-int", "RAG_KEY_PUBLIC", "k-pub");
+            assertThat(run(stub, env, "--split=dev", "--multi-turn=true", "--multi-turn-file=" + mt)).isZero();
+            Path dir = onlyRunDir();
+            assertThat(dir.getFileName().toString()).endsWith("-multi-turn");
+            String md = Files.readString(dir.resolve("report.md"));
+            assertThat(md).contains("| m1 |").doesNotContain("| m2 |").contains("| rewritePrompt | rewrite.v1 |");
+            assertThat(Files.readString(dir.resolve("rewrites.jsonl"))).contains("rewritten");
+        }
+    }
+
+    @Test
+    void multiTurnWithUnknownGoldenIdFails() throws Exception {
+        try (var stub = new StubServer()) {
+            Path mt = Files.writeString(tmp.resolve("multi-turn.yaml"), """
+                    - {id: m1, split: dev, turns: [g9], followUp: "And it?", standaloneGoldenId: g1, minClearance: internal}
+                    """);
+            assertThat(run(stub, Map.of("RAG_KEY_DEV", "k"), "--multi-turn=true", "--multi-turn-file=" + mt)).isEqualTo(1);
+            assertThat(stub.requests.stream().filter(r -> r.path().equals("/v1/ask"))).isEmpty();
+        }
+    }
 }
