@@ -38,4 +38,10 @@ class TokenCounterTest {
         assertThat(s).startsWith(cut);
         assertThat(tc.count(cut)).isLessThanOrEqualTo(101);
     }
+
+    @Test
+    void cl100kIsLoadedOnceAndShared() {
+        // The encoding tables are large; one copy per caller (one per Spring context in tests) exhausts the heap.
+        org.assertj.core.api.Assertions.assertThat(TokenCounter.cl100k()).isSameAs(TokenCounter.cl100k());
+    }
 }

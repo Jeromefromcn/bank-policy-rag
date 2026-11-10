@@ -8,6 +8,10 @@ import com.knuddels.jtokkit.api.IntArrayList;
 /** Counts cl100k_base tokens. Stable and comparable; not the embedding model's tokenizer (ROADMAP §4.4). */
 public final class TokenCounter {
 
+    /** Loaded once: the encoding is immutable and thread-safe, and its tables are large. */
+    private static final TokenCounter CL100K =
+            new TokenCounter(Encodings.newDefaultEncodingRegistry().getEncoding(EncodingType.CL100K_BASE));
+
     private final Encoding encoding;
 
     private TokenCounter(Encoding encoding) {
@@ -15,7 +19,7 @@ public final class TokenCounter {
     }
 
     public static TokenCounter cl100k() {
-        return new TokenCounter(Encodings.newDefaultEncodingRegistry().getEncoding(EncodingType.CL100K_BASE));
+        return CL100K;
     }
 
     public int count(String text) {
