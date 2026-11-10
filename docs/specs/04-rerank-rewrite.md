@@ -168,7 +168,9 @@ Fixed: structural chunks, `nomic-embed-text`, `HYBRID`, same index and corpus as
 
 ### 7.2 Multi-turn set
 
-- New file `eval/multi-turn.yaml`. Each item: `{id, split, turns: [goldenId], followUp, expectedSources, minClearance}`.
+- New file `eval/multi-turn.yaml`. Each item: `{id, split, turns: [goldenId], followUp, standaloneGoldenId,
+  expectedSources?, minClearance}`. `standaloneGoldenId` is the golden item whose question is the self-contained form
+  of the follow-up (the upper-bound variant); `expectedSources` defaults to that item's.
   The first turn is an **existing golden item** (its question is asked live); the follow-up is a question that only
   makes sense with that context, e.g. after g001 ("severity levels"): "How soon must the CIO hear about the highest
   one?" with g002's expected sources.
