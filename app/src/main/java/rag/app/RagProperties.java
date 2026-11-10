@@ -13,7 +13,7 @@ public record RagProperties(
         Rerank rerank, Conversation conversation) {
 
     public RagProperties {
-        ask = ask == null ? new Ask(0.0, 0.5, 0.0) : ask;
+        ask = ask == null ? new Ask(0.0, 0.5, 0.05) : ask;
         rerank = rerank == null ? new Rerank("http://127.0.0.1:18090", 20, 256, java.time.Duration.ofSeconds(15)) : rerank;
         conversation = conversation == null ? new Conversation(java.time.Duration.ofMinutes(30), 5, 1000) : conversation;
     }
@@ -77,7 +77,7 @@ public record RagProperties(
      *                      model. {@code 0} (or less) turns the gate off until {@code decisions/03} sets a value
      * @param minOverlap    lexical-overlap flag threshold of the citation validator (soft: never refuses)
      * @param minRerankProbability refusal gate on the best {@code sigmoid(rerank score)}, applied only when the request
-     *                      asks for rerank. {@code 0} (or less) turns it off until {@code decisions/04} sets a value
+     *                      asks for rerank. {@code 0} (or less) turns it off; {@code decisions/04} sets 0.05
      */
     public record Ask(double minSimilarity, double minOverlap, double minRerankProbability) {}
 

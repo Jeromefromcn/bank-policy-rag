@@ -404,11 +404,11 @@ record the reasons honestly.
 
 ### Phase 4 · Rerank and query rewriting (optional)
 
-- [ ] Hybrid top-20 (each truncated to 256 tokens) → cross-encoder rerank → top-5; measure
+- [x] Hybrid top-20 (each truncated to 256 tokens) → cross-encoder rerank → top-5; measure
       the change in Recall and p95 latency
 - [ ] Enable `conversationId` to resolve references in multi-turn conversations; write the
       rewritten query to the audit log
-- [ ] Use the rerank score instead of vector similarity as the refusal threshold, and re-sweep
+- [x] Use the rerank score instead of vector similarity as the refusal threshold, and re-sweep
 
 **Exit**: "rerank takes Recall@5 from X to Y and adds Z ms of p95 latency", plus the
 decision made on that trade-off.
