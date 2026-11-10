@@ -1,0 +1,83 @@
+# Multi-turn eval set (docs/specs/04-rerank-rewrite.md §7.2). Drafted by Claude from golden-set pairs; approved by the
+# author on 2026-11-10.
+#
+# Each item is a two-turn conversation. Turn 1 asks an existing golden item's question live (`turns`); the follow-up
+# only makes sense with that context. `standaloneGoldenId` is the golden item whose question is the self-contained
+# form of the follow-up; its expectedSources score the follow-up retrieval (raw / rewrite / standalone).
+# `split` follows the standalone item, so no test item is tuned on. `minClearance` is the highest clearance any turn
+# needs; the whole conversation runs with that caller's key.
+#
+# Distribution: 8 dev, 4 test.
+
+- id: m01
+  split: dev
+  turns: [g001]
+  followUp: "How soon must the CIO be told about the most severe one?"
+  standaloneGoldenId: g002
+  minClearance: internal
+- id: m02
+  split: dev
+  turns: [g004]
+  followUp: "And for the emergency kind, who approves it and when is it reviewed?"
+  standaloneGoldenId: g005
+  minClearance: internal
+- id: m03
+  split: dev
+  turns: [g007]
+  followUp: "Who decides whether to actually do that during a real outage?"
+  standaloneGoldenId: g008
+  minClearance: internal
+- id: m04
+  split: dev
+  turns: [g018]
+  followUp: "Are those changes allowed during a freeze if it is an emergency, and who signs them off?"
+  standaloneGoldenId: g029
+  minClearance: internal
+- id: m05
+  split: dev
+  turns: [g011]
+  followUp: "What does that module mean by severe but plausible scenarios?"
+  standaloneGoldenId: g019
+  minClearance: public
+- id: m06
+  split: dev
+  turns: [g017]
+  followUp: "What is the RPO of the platform it supports?"
+  standaloneGoldenId: g015
+  minClearance: internal
+- id: m07
+  split: dev
+  turns: [g030]
+  followUp: "When did the Board approve that register?"
+  standaloneGoldenId: g031
+  minClearance: restricted
+- id: m08
+  split: dev
+  turns: [g033]
+  followUp: "Which forensic firm does the bank keep on retainer for those?"
+  standaloneGoldenId: g034
+  minClearance: restricted
+- id: m09
+  split: test
+  turns: [g015]
+  followUp: "And what is its RTO?"
+  standaloneGoldenId: g016
+  minClearance: internal
+- id: m10
+  split: test
+  turns: [g001]
+  followUp: "After one of the top two levels, when must the review be finished?"
+  standaloneGoldenId: g003
+  minClearance: internal
+- id: m11
+  split: test
+  turns: [g004]
+  followUp: "Can the developer who wrote it deploy it to production themselves?"
+  standaloneGoldenId: g006
+  minClearance: internal
+- id: m12
+  split: test
+  turns: [g019]
+  followUp: "In the same module, what is a tolerance for disruption and who should approve it?"
+  standaloneGoldenId: g020
+  minClearance: public
