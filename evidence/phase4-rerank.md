@@ -126,6 +126,8 @@ from **312 ms to 2323 ms**. bge-reranker-v2-m3 raised test Recall@5 to 0.950 at 
 - Sample sizes are small (26 / 10 answerable, 4 / 2 unanswerable). One test item moves Recall@5 by 0.05 to 0.10,
   and every difference between A and B on test is one or two items.
 
-## 8. Not run yet
+## 8. Generation with rerank: not run
 
-- Generation with rerank (spec §7.3, plan Task 12) is optional and has not run.
+The optional generation run with rerank (spec §7.3) was skipped: `decisions/04` keeps rerank off by default, so the
+default `/v1/ask` path is the one Phase 3 already measured. A caller who opts in gets MiniLM and the 0.05 gate, whose
+retrieval effect is in §3 and §5 above.

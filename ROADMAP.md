@@ -21,7 +21,7 @@ How to track progress:
 - [x] **Phase 1** · Naive baseline — `evidence/phase1-baseline.md`
 - [x] **Phase 2** · Structural chunking + hybrid + embedding ablation — `evidence/phase2-*.md` (two comparison tables)
 - [x] **Phase 3** · Citations, refusals, generation-side eval — `evidence/phase3-*.md`
-- [ ] **Phase 4** · Rerank and query rewriting (optional) — `evidence/phase4-*.md`
+- [x] **Phase 4** · Rerank and query rewriting (optional) — `evidence/phase4-*.md`
 - [ ] **Phase 5** · Permissions, audit, observability, CI gate — green CI gate + permission and injection test records
 - [ ] **Phase 6** · MCP server — `evidence/phase6-*.md` (integration record)
 - [ ] **Phase 7** · README and article — README results table + published article
@@ -639,5 +639,5 @@ The repo can be made public once Phase 0–1 are done, with the README marked "i
   - [x] Current versions of each SPM module (Phase 0)
   - [x] Whether the HKMA terms have changed (Phase 0)
   - [x] The ES `rrf` retriever's licence requirements (Phase 2) — conflicting evidence, see spec 02 §2
-  - [ ] The arm64 reranker approach (llama.cpp or Python sidecar) and image versions (Phase 4)
+  - [x] The arm64 reranker approach (llama.cpp or Python sidecar) and image versions (Phase 4) — Python sidecar, spec 04 §2-§3
   - [ ] Whether in-process ONNX can load `nomic-embed-text` on aarch64 (§8, optional)
