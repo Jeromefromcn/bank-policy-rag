@@ -75,7 +75,7 @@ flowchart LR
 - **Ordering**: sort by rerank score descending; ties keep the fused order. Each hit keeps its existing `scores` and
   gains `rerankScore` (raw logit), `rerankProbability` (`sigmoid(logit)`) and `fusedRank`. `score` becomes
   `rerankProbability` when reranked.
-- **Failure**: reranker unreachable, timeout (`rag.rerank.timeout = 5s`) or malformed response → `503`
+- **Failure**: reranker unreachable, timeout (`rag.rerank.timeout = 15s`; raised from 5 s after the final review measured MiniLM at 5.4 to 5.9 s for 50 passages, the `topK` maximum) or malformed response → `503`
   problem `reranker-unavailable`. No silent fallback to the fused order, same rule as a failing leg (spec 02 §4).
 - **Latency**: `latencyMs.rerank` on `/v1/ask` is now measured; `/v1/search` gains `diagnostics.latencyMs`
   `{retrieval, rerank}` so the eval runner can report server-side stage latency as well as client-side total.

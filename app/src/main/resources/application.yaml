@@ -52,7 +52,8 @@ rag:
     url: ${RERANKER_URL:http://127.0.0.1:18090}
     candidates: 20
     max-passage-tokens: 256
-    timeout: 5s
+    # A hang guard, not a latency target: MiniLM takes about 5.9 s for 50 passages (topK 50) on 2 CPUs.
+    timeout: 15s
   ask:
     # 0 = gate off. The value comes from decisions/03 (spec 03 §3.2).
     min-similarity: ${RAG_ASK_MIN_SIMILARITY:0.0}

@@ -9,7 +9,7 @@
 # Retrieval runs repeat every item 3 times for latency; --sweep runs the rerank-score threshold sweep on dev instead.
 # Needs ES_PASSWORD and RAG_KEY_DEV (from .env). Throw-away keys for the internal and public callers are generated per
 # run and never printed. Env: RAG_ENV_PREFIX (default rag_dev), RERANK_PORT (default 18082),
-# RERANKER_URL (default http://127.0.0.1:18090), RAG_RERANK_TIMEOUT (default 5s; 600s for bge, whose calls take tens of seconds
+# RERANKER_URL (default http://127.0.0.1:18090), RAG_RERANK_TIMEOUT (default 15s; 600s for bge, whose calls take tens of seconds
 # on 2 CPUs).
 set -euo pipefail
 
@@ -32,9 +32,9 @@ done
 [[ "$sweep" -eq 0 || "$variant" != none ]] || { echo "error: --sweep needs a reranker (minilm or bge)" >&2; exit 2; }
 
 case "$variant" in
-  minilm) model="cross-encoder/ms-marco-MiniLM-L6-v2"; timeout="${RAG_RERANK_TIMEOUT:-5s}" ;;
+  minilm) model="cross-encoder/ms-marco-MiniLM-L6-v2"; timeout="${RAG_RERANK_TIMEOUT:-15s}" ;;
   bge) model="BAAI/bge-reranker-v2-m3"; timeout="${RAG_RERANK_TIMEOUT:-600s}" ;;
-  none) model=""; timeout="${RAG_RERANK_TIMEOUT:-5s}" ;;
+  none) model=""; timeout="${RAG_RERANK_TIMEOUT:-15s}" ;;
 esac
 
 cd "$(cd "$(dirname "$0")/.." && pwd)"
