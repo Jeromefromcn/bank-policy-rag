@@ -4,12 +4,14 @@ import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Tracer;
 import java.util.Map;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.stereotype.Component;
 import rag.app.metrics.Observations;
 import rag.app.metrics.RequestMetrics;
 import rag.app.metrics.Tracing;
 
 /** Writes audit records and supplies the trace id; the record builders live in the request services. */
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @Component
 public class AuditService {
 

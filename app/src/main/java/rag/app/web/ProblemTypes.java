@@ -15,6 +15,8 @@ public final class ProblemTypes {
     public static final URI RERANKER_UNAVAILABLE = URI.create("urn:rag:problem:reranker-unavailable");
     public static final URI AUDIT_UNAVAILABLE = URI.create("urn:rag:problem:audit-unavailable");
     public static final URI AUDIT_READER_UNAVAILABLE = URI.create("urn:rag:problem:audit-reader-unavailable");
+    public static final URI CONTENT_HASH_MISMATCH = URI.create("urn:rag:problem:content-hash-mismatch");
+    public static final URI REPLAY_UNSUPPORTED = URI.create("urn:rag:problem:replay-unsupported");
 
     private ProblemTypes() {}
 }

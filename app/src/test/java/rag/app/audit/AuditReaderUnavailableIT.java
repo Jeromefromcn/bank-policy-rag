@@ -44,4 +44,16 @@ class AuditReaderUnavailableIT extends IntegrationTest {
         JsonNode body = JSON.readTree(r.body());
         assertThat(body.get("type").asString()).isEqualTo("urn:rag:problem:audit-reader-unavailable");
     }
+
+    @Test
+    void replayWithoutReaderIs503() {
+        var ask = Http.post(port, "/v1/ask", KEY, JSON.writeValueAsString(Map.of("question", QUERY)));
+        assertThat(ask.status()).as(ask.body()).isEqualTo(200);
+        String id = JSON.readTree(ask.body()).get("answerId").asString();
+
+        var r = Http.post(port, "/v1/audit/" + id + "/replay", ADMIN_KEY, "{}");
+        assertThat(r.status()).isEqualTo(503);
+        assertThat(JSON.readTree(r.body()).get("type").asString())
+                .isEqualTo("urn:rag:problem:audit-reader-unavailable");
+    }
 }

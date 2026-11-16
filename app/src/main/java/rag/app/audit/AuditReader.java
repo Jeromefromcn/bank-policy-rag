@@ -14,6 +14,7 @@ import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
 import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.stereotype.Component;
 import rag.app.RagProperties;
 import rag.app.web.ApiException;
@@ -23,6 +24,7 @@ import rag.app.web.ProblemTypes;
  * Reads audit records with the separate read-only user (spec 05 §4.4). Without credentials it refuses
  * every read with 503 rather than falling back to the write-only application user.
  */
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @Component
 public class AuditReader implements AutoCloseable {
 
