@@ -199,9 +199,9 @@ class SearchControllerIT extends IntegrationTest {
 
     @Test
     void infoExposesVersions() {
-        var r = Http.get(port, "/actuator/info", KEY);
+        var r = Http.get(port, "/v1/info", KEY);
         assertThat(r.status()).isEqualTo(200);
-        JsonNode rag = JSON.readTree(r.body()).get("rag");
+        JsonNode rag = JSON.readTree(r.body());
         assertThat(rag.get("chunkerVersion").asString()).isEqualTo("fixed-512-64-cl100k");
         assertThat(rag.get("embeddingModel").asString()).isEqualTo("fake/hash");
         assertThat(rag.get("corpusVersion").asString()).isEqualTo("abcdef123456");
@@ -210,7 +210,7 @@ class SearchControllerIT extends IntegrationTest {
 
     @Test
     void infoRequiresKey() {
-        assertThat(Http.get(port, "/actuator/info", null).status()).isEqualTo(401);
+        assertThat(Http.get(port, "/v1/info", null).status()).isEqualTo(401);
     }
 
     @Test

@@ -111,7 +111,7 @@ public final class EvalRunner {
                 if (info.getOrDefault(required, "").isBlank()) {
                     // No live index behind the alias (wrong RAG_ENV_PREFIX, or a rebuild in progress):
                     // scoring it would produce an all-zero report.
-                    out.println("error: /actuator/info has no " + required + "; is the chunks index ingested?");
+                    out.println("error: /v1/info has no " + required + "; is the chunks index ingested?");
                     return 1;
                 }
             }

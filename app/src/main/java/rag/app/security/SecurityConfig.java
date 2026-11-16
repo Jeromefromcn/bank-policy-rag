@@ -33,7 +33,7 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(a -> a.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                .authorizeHttpRequests(a -> a.requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/v1/audit/**").hasRole("admin")
                         .anyRequest().authenticated())
                 .addFilterBefore(apiKeys, AnonymousAuthenticationFilter.class)

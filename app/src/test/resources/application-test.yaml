@@ -22,3 +22,9 @@ spring:
     model:
       chat: none
       embedding: none
+
+management:
+  server:
+    port: 0
+  tracing:
+    enabled: false

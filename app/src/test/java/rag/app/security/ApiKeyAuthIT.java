@@ -24,8 +24,9 @@ class ApiKeyAuthIT extends IntegrationTest {
     }
 
     @Test
-    void healthIsOpen() {
-        assertThat(Http.get(port, "/actuator/health", null).status()).isEqualTo(200);
+    void apiPortDoesNotServeHealth() {
+        // Actuator lives on the management port (ManagementIT checks it there).
+        assertThat(Http.get(port, "/actuator/health", null).status()).isEqualTo(404);
     }
 
     @Test

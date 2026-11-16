@@ -28,6 +28,11 @@ public class IndexInfoContributor implements InfoContributor {
 
     @Override
     public void contribute(Info.Builder builder) {
+        builder.withDetail("rag", rag());
+    }
+
+    /** The version map served by {@code /v1/info} and embedded in actuator's info endpoint. */
+    public Map<String, String> rag() {
         Map<String, String> rag = new LinkedHashMap<>();
         admin.aliasInfo(props.retrieval().chunksTarget(props.envPrefix())).ifPresent(info -> {
             rag.putAll(info.meta());
@@ -37,6 +42,6 @@ public class IndexInfoContributor implements InfoContributor {
         rag.put("generationModel", env.getProperty("spring.ai.deepseek.chat.options.model", ""));
         rag.put("answerPrompt", renderer.templateVersion());
         rag.put("minSimilarity", String.valueOf(props.ask().minSimilarity()));
-        builder.withDetail("rag", rag);
+        return rag;
     }
 }

@@ -35,7 +35,7 @@ final class StubServer implements AutoCloseable {
     /** Builds the {@code /chat/completions} response body (the whole OpenAI-style JSON) from the request body. */
     volatile java.util.function.Function<String, String> judgeResponder = body -> judgeContent("{\"verdicts\":[\"yes\"]}");
     volatile String infoBody = """
-            {"rag":{"corpusVersion":"abc123","chunkerVersion":"fixed-512-64-cl100k","embeddingModel":"ollama/nomic-embed-text","index":"x","generationModel":"gen-model","answerPrompt":"answer.v2"}}""";
+            {"corpusVersion":"abc123","chunkerVersion":"fixed-512-64-cl100k","embeddingModel":"ollama/nomic-embed-text","index":"x","generationModel":"gen-model","answerPrompt":"answer.v2"}""";
 
     StubServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -43,7 +43,7 @@ final class StubServer implements AutoCloseable {
         server.createContext("/v1/ask", ex -> respond(ex, askStatus, askResponder == null ? askBody : null));
         server.createContext("/chat/completions", ex -> respond(ex, judgeStatus, null));
         server.createContext("/v1/chat/completions", ex -> respond(ex, judgeStatus, null));
-        server.createContext("/actuator/info", ex -> respond(ex, 200, infoBody));
+        server.createContext("/v1/info", ex -> respond(ex, 200, infoBody));
         server.start();
     }
 

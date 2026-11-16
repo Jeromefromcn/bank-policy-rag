@@ -46,9 +46,9 @@ Filled in before implementation; results go in this table.
 | Audit index name and privileges | Ask gitops for the current state of `audit-rag-v1` / `audit-rag_dev-v1`, `create_index` (replacing `auto_configure`) and the two read-only users `rag_audit_reader` / `rag_audit_reader_dev` (requests sent 2026-11-08) | Pending |
 | Index template applies to `audit-*` | Create the index with an explicit strict mapping, write one document, re-read via the reader user | Pending |
 | Audit writer privileges | The app user has `create_doc` on `audit-<prefix>-*`; confirm whether `create_index` is granted, or only `auto_configure` | Pending |
-| Micrometer / OTLP artifacts for Boot 4.1.2 | Resolve `micrometer-registry-prometheus`, `micrometer-tracing-bridge-otel`, `opentelemetry-exporter-otlp` from the Boot BOM; record exact versions in the plan | Pending |
+| Micrometer / OTLP artifacts for Boot 4.1.2 | Resolve `micrometer-registry-prometheus`, `micrometer-tracing-bridge-otel`, `opentelemetry-exporter-otlp` from the Boot BOM; record exact versions in the plan | Resolved 2026-11-16: Micrometer 1.17.2, Micrometer Tracing 1.7.2, OpenTelemetry 1.62.0 |
 | OTLP/HTTP endpoint property | One live trace from the app to the shared Jaeger at `127.0.0.1:30117`; confirm the Boot property name and protocol (`http/protobuf`) | Pending |
-| Management port behaviour | `curl 127.0.0.1:8081/actuator/prometheus` without a key returns `200`; `8080/actuator/prometheus` is not reachable | Pending |
+| Management port behaviour | `curl 127.0.0.1:8081/actuator/prometheus` without a key returns `200`; `8080/actuator/prometheus` is not reachable | Verified in `ManagementIT` 2026-11-16: management port returns 200 for `prometheus` and `health` without a key; the API port returns 404 |
 | Proxy-subnet reachability | From a container on the `proxy` network (`172.19.0.0/16`), `curl 172.19.0.1:8081/actuator/prometheus` returns `200` after the gitops firewall rule; a connection from outside that subnet is rejected | Pending |
 | Prometheus scrape job | Gitops adds target `172.19.0.1:8081`; a `rag_requests_total` sample appears in Prometheus | Pending |
 | arm64 GitHub runner | `ubuntu-24.04-arm` is available to the public repo; Docker works; the pinned `elasticsearch:9.5.5` image starts | Pending |
