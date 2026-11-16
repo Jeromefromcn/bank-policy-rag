@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  # The app runs on the host; this compose Prometheus reaches its management port through the
+  # host gateway. Set MANAGEMENT_ADDRESS=0.0.0.0 on the app when using this profile.
+  - job_name: bank-policy-rag
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8081"]
