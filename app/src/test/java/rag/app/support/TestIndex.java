@@ -42,4 +42,12 @@ public final class TestIndex {
                 chunk("c-p5", "spm-x", "public", "4", "incident response for disruption"),
                 chunk("c-p6", "spm-x", "public", "5", "outsourcing agreements"));
     }
+
+    /** A public, an internal and a restricted chunk; only the restricted one matches {@code query} exactly. */
+    public static List<ChunkDocument> threeLevels(String query) {
+        return List.of(
+                chunk("c-pub", "spm-x", "public", "1", "public tolerance guidance"),
+                chunk("c-int", "eb-a", "internal", "2", "internal change process"),
+                chunk("c-res", "eb-secret", "restricted", "9", query));
+    }
 }
