@@ -1,19 +1,24 @@
 package rag.app.ask;
 
 import com.github.f4b6a3.ulid.UlidCreator;
+import io.micrometer.observation.ObservationRegistry;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import rag.app.RagProperties;
 import rag.app.conversation.ConversationStore;
 import rag.app.conversation.QueryRewriter;
 import rag.app.conversation.Turn;
+import rag.app.metrics.Observations;
+import rag.app.metrics.RequestMetrics;
 import rag.app.search.RetrievalPipeline;
 import rag.app.search.Mode;
 import rag.app.search.SearchHit;
@@ -48,14 +53,21 @@ public class AskService {
     private final CitationValidator validator;
     private final ConversationStore conversations;
     private final QueryRewriter rewriter;
+    private final RequestMetrics metrics;
+    private final ObservationRegistry observations;
+    private final Environment env;
 
     public AskService(RetrievalPipeline retriever, PromptRenderer renderer, ChatModel chat, RagProperties props,
-            ConversationStore conversations, QueryRewriter rewriter) {
+            ConversationStore conversations, QueryRewriter rewriter, RequestMetrics metrics,
+            ObservationRegistry observations, Environment env) {
         this.retriever = retriever;
         this.conversations = conversations;
         this.rewriter = rewriter;
         this.renderer = renderer;
         this.chat = chat;
+        this.metrics = metrics;
+        this.observations = observations;
+        this.env = env;
         this.minSimilarity = props.ask().minSimilarity();
         this.minRerankProbability = props.ask().minRerankProbability();
         this.validator = new CitationValidator(props.ask().minOverlap());
@@ -90,43 +102,50 @@ public class AskService {
         long retrievalMs = outcome.retrievalMs();
         long rerankMs = outcome.rerankMs();
         List<SearchHit> hits = outcome.hits();
+        metrics.stage("retrieval", retrievalMs);
+        metrics.stage("rerank", rerankMs);
 
         if (hits.isEmpty()) {
-            return refused(answerId, LOW_RETRIEVAL_SCORE, "no accessible hits", null, retrievalMs, rerankMs, 0);
+            return complete(refused(answerId, LOW_RETRIEVAL_SCORE, "no accessible hits", null, retrievalMs, rerankMs, 0));
         }
         Double best = outcome.bestVectorSimilarity();
         if (minSimilarity > 0 && best != null && best < minSimilarity) {
-            return refused(answerId, LOW_RETRIEVAL_SCORE, "similarity " + best + " below gate " + minSimilarity, null,
-                    retrievalMs, rerankMs, 0);
+            return complete(refused(answerId, LOW_RETRIEVAL_SCORE, "similarity " + best + " below gate " + minSimilarity, null,
+                    retrievalMs, rerankMs, 0));
         }
         Double bestRerank = outcome.bestRerankProbability();
         if (rerank && minRerankProbability > 0 && bestRerank != null && bestRerank < minRerankProbability) {
-            return refused(answerId, LOW_RETRIEVAL_SCORE, "rerank probability " + bestRerank + " below gate "
-                    + minRerankProbability, null, retrievalMs, rerankMs, 0);
+            return complete(refused(answerId, LOW_RETRIEVAL_SCORE, "rerank probability " + bestRerank + " below gate "
+                    + minRerankProbability, null, retrievalMs, rerankMs, 0));
         }
 
         long t1 = System.nanoTime();
+        String model = env.getProperty("spring.ai.deepseek.chat.options.model", "");
         ChatResponse response;
         try {
-            response = chat.call(renderer.render(question, hits));
+            response = Observations.observe(observations, "rag.generation", Map.of("model", model),
+                    () -> chat.call(renderer.render(question, hits)));
         } catch (RuntimeException e) {
             throw new GenerationUnavailableException("generation failed: " + e.getMessage(), e);
         }
         long generationMs = ms(t1);
+        metrics.stage("generation", generationMs);
         var usage = response.getMetadata() == null ? null : response.getMetadata().getUsage();
         var responseUsage = new AskResponse.Usage(usage == null ? null : usage.getPromptTokens(),
                 usage == null ? null : usage.getCompletionTokens());
+        metrics.tokens(model, responseUsage.promptTokens(), responseUsage.completionTokens());
         String answer = response.getResult().getOutput().getText();
         answer = answer == null ? "" : answer.strip();
 
         if (answer.isEmpty() || PromptRenderer.isNoAnswer(answer)) {
-            return refused(answerId, LOW_RETRIEVAL_SCORE, "model declined (NO_ANSWER or empty)", responseUsage, retrievalMs,
-                    rerankMs, generationMs);
+            return complete(refused(answerId, LOW_RETRIEVAL_SCORE, "model declined (NO_ANSWER or empty)", responseUsage,
+                    retrievalMs, rerankMs, generationMs));
         }
         CitationReport report = validator.validate(answer, hits.stream().map(SearchHit::text).toList());
         if (report.hardFail()) {
-            return refused(answerId, CITATION_VALIDATION_FAILED, "range=" + report.rangeOk() + " coverage=" + report.coverageOk(),
-                    responseUsage, retrievalMs, rerankMs, generationMs);
+            return complete(refused(answerId, CITATION_VALIDATION_FAILED,
+                    "range=" + report.rangeOk() + " coverage=" + report.coverageOk(), responseUsage, retrievalMs, rerankMs,
+                    generationMs));
         }
         long flagged = report.sentences().stream().filter(CitationReport.SentenceCheck::flagged).count();
         if (flagged > 0) {
@@ -139,8 +158,16 @@ public class AskService {
             String quote = h.text().length() <= QUOTE_CHARS ? h.text() : h.text().substring(0, QUOTE_CHARS);
             citations.add(new AskResponse.Citation(ref, h.chunkId(), h.docId(), h.sectionPath(), h.pages(), quote));
         }
-        return new AskResponse(answerId, "ANSWERED", null, answer, citations, responseUsage,
-                new AskResponse.Latency(retrievalMs, rerankMs, generationMs, 0), null, null);
+        return complete(new AskResponse(answerId, "ANSWERED", null, answer, citations, responseUsage,
+                new AskResponse.Latency(retrievalMs, rerankMs, generationMs, 0), null, null));
+    }
+
+    private AskResponse complete(AskResponse r) {
+        metrics.request("ask", r.status().equals("ANSWERED") ? "answered" : "refused");
+        if (r.status().equals("REFUSED")) {
+            metrics.refusal(r.refusalReason());
+        }
+        return r;
     }
 
     private static AskResponse refused(String answerId, String reason, String internalCause, AskResponse.Usage usage,
