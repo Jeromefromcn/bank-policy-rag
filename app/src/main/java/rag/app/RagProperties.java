@@ -10,12 +10,20 @@ import rag.core.model.Clearance;
 @ConfigurationProperties("rag")
 public record RagProperties(
         String envPrefix, Security security, Embedding embedding, Retrieval retrieval, Chunking chunking, Corpus corpus, Ask ask,
-        Rerank rerank, Conversation conversation) {
+        Rerank rerank, Conversation conversation, Audit audit) {
 
     public RagProperties {
         ask = ask == null ? new Ask(0.0, 0.5, 0.05) : ask;
         rerank = rerank == null ? new Rerank("http://127.0.0.1:18090", 20, 256, java.time.Duration.ofSeconds(15)) : rerank;
         conversation = conversation == null ? new Conversation(java.time.Duration.ofMinutes(30), 5, 1000) : conversation;
+        audit = audit == null ? new Audit("", "", "") : audit;
+    }
+
+    /** The configured audit index, or {@code audit-<envPrefix>-v1} when the property is blank. */
+    public String auditIndex() {
+        return audit.index() == null || audit.index().isBlank()
+                ? rag.app.es.IndexNames.auditIndex(envPrefix)
+                : audit.index();
     }
 
 
@@ -99,4 +107,10 @@ public record RagProperties(
      * @param maxConversations conversations kept (least recently used evicted)
      */
     public record Conversation(java.time.Duration ttl, int maxTurns, int maxConversations) {}
+
+    /**
+     * Append-only audit (spec 05 §4). Read and replay use separate credentials; when they are blank the
+     * read endpoints answer 503 instead of falling back to the write-only application user.
+     */
+    public record Audit(String index, String readerUsername, String readerPassword) {}
 }

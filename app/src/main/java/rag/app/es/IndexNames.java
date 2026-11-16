@@ -13,6 +13,11 @@ public final class IndexNames {
         return prefix + "-sections";
     }
 
+    /** The append-only audit index, e.g. {@code audit-rag_dev-v1} (spec 05 §4.1). */
+    public static String auditIndex(String prefix) {
+        return "audit-" + prefix + "-v1";
+    }
+
     /**
      * e.g. {@code rag_dev-chunks-nomic768-fixed512-v1} from chunker {@code fixed-512-64-cl100k}. A model name that
      * ends in a digit gets a dash before the dims ({@code bgem3-1024}) so the name stays readable. A chunker

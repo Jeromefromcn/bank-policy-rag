@@ -64,6 +64,11 @@ rag:
     ttl: 30m
     max-turns: 5
     max-conversations: 1000
+  audit:
+    # Blank = audit-<env-prefix>-v1 (spec 05 §4.1).
+    index: ${RAG_AUDIT_INDEX:}
+    reader-username: ${ES_AUDIT_READER_USERNAME:}
+    reader-password: ${ES_AUDIT_READER_PASSWORD:}
 
 spring:
   application:
