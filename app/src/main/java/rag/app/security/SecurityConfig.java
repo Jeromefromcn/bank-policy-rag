@@ -13,6 +13,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import rag.app.RagProperties;
 import rag.app.web.ProblemTypes;
@@ -33,9 +34,10 @@ public class SecurityConfig {
                 .logout(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/v1/audit/**").hasRole("admin")
                         .anyRequest().authenticated())
                 .addFilterBefore(apiKeys, AnonymousAuthenticationFilter.class)
-                .exceptionHandling(e -> e.authenticationEntryPoint(unauthorized(json)));
+                .exceptionHandling(e -> e.authenticationEntryPoint(unauthorized(json)).accessDeniedHandler(forbidden(json)));
         return http.build();
     }
 
@@ -50,6 +52,17 @@ public class SecurityConfig {
             ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Missing or invalid X-Api-Key");
             p.setType(ProblemTypes.UNAUTHORIZED);
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
+            response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+            response.getWriter().write(json.writeValueAsString(p));
+        };
+    }
+
+    private static AccessDeniedHandler forbidden(JsonMapper json) {
+        return (request, response, ex) -> {
+            ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN,
+                    "The API key does not grant access to this resource");
+            p.setType(ProblemTypes.FORBIDDEN);
+            response.setStatus(HttpStatus.FORBIDDEN.value());
             response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
             response.getWriter().write(json.writeValueAsString(p));
         };

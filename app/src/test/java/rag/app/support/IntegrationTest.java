@@ -15,6 +15,8 @@ public abstract class IntegrationTest {
 
     public static final String KEY = "test-key";
     public static final String PUBLIC_KEY = "public-key";
+    public static final String INTERNAL_KEY = "internal-key";
+    public static final String ADMIN_KEY = "admin-key";
 
     @LocalServerPort protected int port;
 
