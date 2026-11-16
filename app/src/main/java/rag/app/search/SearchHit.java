@@ -15,4 +15,5 @@ public record SearchHit(
         String classification,
         double score,
         Map<String, Object> scores,
-        String text) {}
+        String text,
+        String contentHash) {}

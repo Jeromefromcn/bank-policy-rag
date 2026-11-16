@@ -103,7 +103,7 @@ public class HybridSearch {
                 scores.put("bm25Score", b.scores().get("bm25Score"));
             }
             out.add(new SearchHit(base.chunkId(), base.sectionId(), base.docId(), base.docTitle(), base.sectionPath(),
-                    base.coveredSections(), base.pages(), base.classification(), r.score(), scores, base.text()));
+                    base.coveredSections(), base.pages(), base.classification(), r.score(), scores, base.text(), base.contentHash()));
         }
         return new SearchOutcome(out, bestSimilarity(vectorHits));
     }

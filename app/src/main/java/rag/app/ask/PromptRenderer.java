@@ -56,7 +56,22 @@ public class PromptRenderer {
         return VERSION;
     }
 
+    /** The two messages plus a canonical text form for the audit record (spec 05 §4.2). */
+    public record Rendered(String system, String user) {
+        public String text() {
+            return "[system]\n" + system + "\n[user]\n" + user;
+        }
+
+        public Prompt toPrompt() {
+            return new Prompt(List.of(new SystemMessage(system), new UserMessage(user)));
+        }
+    }
+
     public Prompt render(String question, List<SearchHit> hits) {
+        return renderDetailed(question, hits).toPrompt();
+    }
+
+    public Rendered renderDetailed(String question, List<SearchHit> hits) {
         StringBuilder sources = new StringBuilder();
         for (int i = 0; i < hits.size(); i++) {
             SearchHit h = hits.get(i);
@@ -75,7 +90,19 @@ public class PromptRenderer {
             m.appendReplacement(out, Matcher.quoteReplacement(values.get(m.group(1))));
         }
         m.appendTail(out);
-        return new Prompt(List.of(new SystemMessage(system), new UserMessage(out.toString())));
+        return new Rendered(system, out.toString());
+    }
+
+    /** Rebuilds the two messages from the audit record's canonical prompt text. */
+    public static Prompt parse(String text) {
+        String prefix = "[system]\n";
+        String marker = "\n[user]\n";
+        int u = text == null ? -1 : text.indexOf(marker);
+        if (text == null || !text.startsWith(prefix) || u < 0) {
+            throw new IllegalArgumentException("malformed rendered prompt");
+        }
+        return new Prompt(List.of(new SystemMessage(text.substring(prefix.length(), u)),
+                new UserMessage(text.substring(u + marker.length()))));
     }
 
     /** A source must not be able to close or open a fence: any run of three or more '<' is replaced by U+2039 marks. */

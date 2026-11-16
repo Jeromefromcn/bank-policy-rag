@@ -25,5 +25,5 @@ public record AskResponse(String answerId, String status, String refusalReason, 
         }
     }
 
-    public record Latency(long retrieval, long rerank, long generation, long rewrite) {}
+    public record Latency(long retrieval, long rerank, long generation, long rewrite, long audit) {}
 }

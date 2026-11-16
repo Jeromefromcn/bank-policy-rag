@@ -97,7 +97,7 @@ public class RetrievalPipeline {
             s.put("rerankScore", scores.get(i));
             s.put("rerankProbability", probability);
             out.add(new SearchHit(h.chunkId(), h.sectionId(), h.docId(), h.docTitle(), h.sectionPath(), h.coveredSections(),
-                    h.pages(), h.classification(), probability, s, h.text()));
+                    h.pages(), h.classification(), probability, s, h.text(), h.contentHash()));
         }
         return out;
     }

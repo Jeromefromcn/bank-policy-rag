@@ -65,7 +65,7 @@ public class Bm25Retriever {
             scores.put("bm25Rank", i + 1);
             scores.put("bm25Score", score);
             out.add(new SearchHit(d.chunkId(), d.sectionId(), d.docId(), d.docTitle(), d.sectionPath(), d.coveredSections(),
-                    d.pages(), d.classification(), score, scores, d.content()));
+                    d.pages(), d.classification(), score, scores, d.content(), d.contentHash()));
         }
         return out;
     }

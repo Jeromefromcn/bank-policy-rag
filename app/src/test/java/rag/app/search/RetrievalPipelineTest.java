@@ -36,7 +36,7 @@ class RetrievalPipelineTest {
         scores.put("vectorRank", i + 1);
         scores.put("similarity", 0.8);
         return new SearchHit("c" + i, "s" + i, "doc", "Title", List.of("1"), List.of("1"), List.of(), "public",
-                1.0 / (61 + i), scores, text);
+                1.0 / (61 + i), scores, text, "h" + i);
     }
 
     static List<SearchHit> hits(int n) {

@@ -50,4 +50,11 @@ public final class TestIndex {
                 chunk("c-int", "eb-a", "internal", "2", "internal change process"),
                 chunk("c-res", "eb-secret", "restricted", "9", query));
     }
+
+    /** Only hidden chunks: a public caller's filtered retrieval is empty and the probe sees the hidden match. */
+    public static List<ChunkDocument> hiddenOnly(String query) {
+        return List.of(
+                chunk("c-int", "eb-a", "internal", "2", query),
+                chunk("c-res", "eb-secret", "restricted", "9", query));
+    }
 }

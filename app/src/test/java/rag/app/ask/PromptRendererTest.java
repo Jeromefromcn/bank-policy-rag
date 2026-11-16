@@ -14,7 +14,7 @@ class PromptRendererTest {
     private final PromptRenderer renderer = new PromptRenderer();
 
     static SearchHit hit(String docId, List<String> sectionPath, String text) {
-        return new SearchHit("c", "s", docId, "T", sectionPath, List.of(), List.of(), "public", 1, Map.of(), text);
+        return new SearchHit("c", "s", docId, "T", sectionPath, List.of(), List.of(), "public", 1, Map.of(), text, "h");
     }
 
     static String text(Prompt p, MessageType type) {
