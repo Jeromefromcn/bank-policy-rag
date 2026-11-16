@@ -45,7 +45,7 @@ class ApiKeyAuthIT extends IntegrationTest {
 
     @Test
     void auditEndpointWithAdminKeyPassesTheRoleCheck() {
-        // No audit controller yet: reaching the dispatcher means 404, not 403/401.
-        assertThat(Http.get(port, "/v1/audit/a_unknown", ADMIN_KEY).status()).isEqualTo(404);
+        // The controller exists now; with no reader credentials in this profile it answers 503, not 403/401.
+        assertThat(Http.get(port, "/v1/audit/a_unknown", ADMIN_KEY).status()).isEqualTo(503);
     }
 }

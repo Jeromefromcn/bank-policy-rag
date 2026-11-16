@@ -14,6 +14,7 @@ public final class ProblemTypes {
     public static final URI GENERATION_UNAVAILABLE = URI.create("urn:rag:problem:generation-unavailable");
     public static final URI RERANKER_UNAVAILABLE = URI.create("urn:rag:problem:reranker-unavailable");
     public static final URI AUDIT_UNAVAILABLE = URI.create("urn:rag:problem:audit-unavailable");
+    public static final URI AUDIT_READER_UNAVAILABLE = URI.create("urn:rag:problem:audit-reader-unavailable");
 
     private ProblemTypes() {}
 }
