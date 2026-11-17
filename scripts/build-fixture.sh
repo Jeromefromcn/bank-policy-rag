@@ -11,4 +11,4 @@ if ! curl -fsS "${OLLAMA_URL}/api/tags" >/dev/null 2>&1; then
 fi
 
 RAG_EMBEDDING_MODEL="${RAG_EMBEDDING_MODEL:-nomic}" \
-  ./gradlew :app:bootRun --args="fixture --out=eval/fixtures"
+  ./gradlew :app:bootRun --args="fixture --out=eval/fixtures --chunker=structural"

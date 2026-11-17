@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import rag.core.corpus.CorpusLoader;
+import rag.core.eval.EvalScope;
 import rag.core.eval.GoldenItem;
 import rag.core.eval.GoldenSet;
 import rag.core.eval.RetrievalMetrics;
@@ -48,7 +49,7 @@ public final class EvalRunner {
         for (String a : args) {
             int eq = a.indexOf('=');
             if (!a.startsWith("--") || eq < 0) {
-                out.println("usage: --base-url=URL [--split=all|dev|test] [--mode=VECTOR|BM25|HYBRID] [--rerank=true [--reranker-model=ID]] [--repeat=N] [--sweep=true] [--overlap-sweep=RUN_DIR] [--export-labels=RUN_DIR [--seed=N] [--n=20]] [--agreement=RUN_DIR [--labels=FILE]] [--multi-turn=true [--multi-turn-file=eval/multi-turn.yaml]] [--injection=true [--injection-file=eval/injection.yaml]] [--generation=true --judge-model=… --judge-url=… --judge-cache=… --min-overlap=…] [--golden=…] [--corpus=…] [--out=…]");
+                out.println("usage: --base-url=URL [--split=all|dev|test] [--mode=VECTOR|BM25|HYBRID] [--rerank=true [--reranker-model=ID]] [--repeat=N] [--sweep=true] [--overlap-sweep=RUN_DIR] [--export-labels=RUN_DIR [--seed=N] [--n=20]] [--agreement=RUN_DIR [--labels=FILE]] [--scope=all|example-bank] [--multi-turn=true [--multi-turn-file=eval/multi-turn.yaml]] [--injection=true [--injection-file=eval/injection.yaml]] [--generation=true --judge-model=… --judge-url=… --judge-cache=… --min-overlap=…] [--golden=…] [--corpus=…] [--out=…]");
                 return 2;
             }
             opts.put(a.substring(2, eq), a.substring(eq + 1));
@@ -105,6 +106,17 @@ public final class EvalRunner {
 
         try {
             List<GoldenItem> items = GoldenSet.load(Path.of(opts.get("golden")), CorpusLoader.knownDocIds(Path.of(opts.get("corpus"))));
+            String scope = opts.getOrDefault("scope", "all");
+            if (!List.of("all", "example-bank").contains(scope)) {
+                out.println("error: --scope must be all or example-bank");
+                return 2;
+            }
+            if (scope.equals("example-bank")) {
+                var exampleBank = CorpusLoader.knownDocIds(Path.of(opts.get("corpus")), CorpusLoader.Scope.EXAMPLE_BANK);
+                var inScope = items.stream().filter(i -> EvalScope.inExampleBank(i, exampleBank)).toList();
+                out.println("scope example-bank: " + inScope.size() + " of " + items.size() + " items");
+                items = inScope;
+            }
             var client = new SearchClient(URI.create(opts.get("base-url")), key, mode, rerank);
             Map<String, String> info = new java.util.TreeMap<>(client.info());
             for (String required : REQUIRED_INFO) {

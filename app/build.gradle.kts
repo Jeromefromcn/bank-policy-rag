@@ -19,6 +19,7 @@ dependencies {
     implementation("com.github.f4b6a3:ulid-creator:5.2.4")
 
     testImplementation(testFixtures(project(":core")))
+    testImplementation(project(":eval-runner"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.micrometer:micrometer-observation-test")
     testImplementation("io.micrometer:micrometer-tracing-test")
@@ -36,7 +37,7 @@ springBoot {
 }
 
 tasks.named<Test>("test") {
-    useJUnitPlatform { excludeTags("local") }
+    useJUnitPlatform { excludeTags("local", "ci") }
     jvmArgs("-XX:+EnableDynamicAgentLoading")
 }
 
@@ -45,4 +46,13 @@ tasks.register<Test>("localTest") {
     testClassesDirs = sourceSets["test"].output.classesDirs
     classpath = sourceSets["test"].runtimeClasspath
     useJUnitPlatform { includeTags("local") }
+}
+
+tasks.register<Test>("ciGate") {
+    description = "Example Bank retrieval gate against eval/baseline.json."
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform { includeTags("ci") }
+    workingDir = rootDir
+    systemProperty("ci.writeBaseline", providers.gradleProperty("ciWriteBaseline").getOrElse("false"))
 }
