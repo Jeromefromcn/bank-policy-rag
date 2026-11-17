@@ -43,7 +43,17 @@ SPM-spanning items. The full-corpus metrics remain local (evidence phases 1–4)
 `ci.yml` pins checkout v4.2.2 (`11bd719…`), setup-java v6.3.0 (`d1374f8…`) and setup-gradle v6.4.1
 (`8da46b5…`); the optional `live-eval.yml` was skipped (generation evidence comes from local runs).
 
-## 4. Pending
+## 4. Remote run
 
-The GitHub Actions run is pending: the branch has not been pushed. The first run's URL and the required status
-check will be added here; Phase 5 stays unticked until it is green.
+| Item | Value |
+|---|---|
+| Run | https://github.com/Jeromefromcn/bank-policy-rag/actions/runs/44110310962 |
+| Workflow / job | `ci` / `test` |
+| Commit | `cb576dc` (branch `phase5-productionisation`) |
+| Runner | `ubuntu-24.04-arm`; job completed in 4m31s |
+| Result | success (2026-11-17T15:05:25Z → 15:10:02Z) |
+| Steps | unit and integration tests, Example Bank retrieval gate, compose limits, no-SPM check: all success |
+| Check name | `test` (workflow `ci`); use this as the required status check |
+
+The only annotation is the non-blocking Node 20 deprecation notice for `actions/checkout@v4.2.2`.
+The first remote run is green, so the Phase 5 exit criterion is met and the box is ticked in `ROADMAP.md`.

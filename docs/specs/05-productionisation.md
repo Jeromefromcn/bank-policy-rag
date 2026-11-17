@@ -52,7 +52,7 @@ Filled in before implementation; results go in this table.
 | Management port behaviour | `curl 127.0.0.1:8081/actuator/prometheus` without a key returns `200`; `8080/actuator/prometheus` is not reachable | Verified in `ManagementIT` 2026-11-16: management port returns 200 for `prometheus` and `health` without a key; the API port returns 404 |
 | Proxy-subnet reachability | From a container on the `proxy` network (`172.19.0.0/16`), `curl 172.19.0.1:8081/actuator/prometheus` returns `200` after the gitops firewall rule; a connection from outside that subnet is rejected | Pending |
 | Prometheus scrape job | Gitops adds target `172.19.0.1:8081`; a `rag_requests_total` sample appears in Prometheus | Pending |
-| arm64 GitHub runner | `ubuntu-24.04-arm` is available to the public repo; Docker works; the pinned `elasticsearch:9.5.5` image starts | Pending |
+| arm64 GitHub runner | `ubuntu-24.04-arm` is available to the public repo; Docker works; the pinned `elasticsearch:9.5.5` image starts | Confirmed 2026-11-17: run `44110310962` passed all steps in 4m31s on `ubuntu-24.04-arm`, including Testcontainers ES |
 | Testcontainers resource limits | The existing `EsTestContainer` limits are unchanged and `scripts/check-compose-limits.sh` still passes | Verified 2026-11-17: `check-compose-limits.sh` reports `ok: 5 services limited`; `EsTestContainer` still sets 1.5 GB / 2 CPUs |
 | Secrets for the manual live eval | `DEEPSEEK_API_KEY` is available to the workflow (or the run is local); PR CI needs none | Local 2026-11-17: the live injection run used the shell `DEEPSEEK_API_KEY`; no GitHub secret is needed for PR CI |
 

@@ -22,7 +22,7 @@ How to track progress:
 - [x] **Phase 2** · Structural chunking + hybrid + embedding ablation — `evidence/phase2-*.md` (two comparison tables)
 - [x] **Phase 3** · Citations, refusals, generation-side eval — `evidence/phase3-*.md`
 - [x] **Phase 4** · Rerank and query rewriting (optional) — `evidence/phase4-*.md`
-- [ ] **Phase 5** · Permissions, audit, observability, CI gate — green CI gate + permission and injection test records
+- [x] **Phase 5** · Permissions, audit, observability, CI gate — green CI gate + permission and injection test records
 - [ ] **Phase 6** · MCP server — `evidence/phase6-*.md` (integration record)
 - [ ] **Phase 7** · README and article — README results table + published article
 
@@ -426,8 +426,9 @@ decision made on that trade-off.
       verify that malicious instructions are not executed and restricted content does not
       leak. Results go into the eval report. (Deterministic tests pass; the live run is recorded
       in `evidence/phase5-injection.md` after the `answer.v3` anti-repetition hardening.)
-- [ ] **CI gate** (GitHub Actions): see §8. (Gate and baseline are green locally; the first remote
-      run awaits the branch push.)
+- [x] **CI gate** (GitHub Actions): see §8. (Gate and baseline green locally; the first remote
+      run, `44110310962` on commit `cb576dc`, is green on `ubuntu-24.04-arm`; see
+      `evidence/phase5-ci.md` §4.)
 
 **Exit**: the eval gate in CI is green; the permission tests and injection tests each have a record.
 
