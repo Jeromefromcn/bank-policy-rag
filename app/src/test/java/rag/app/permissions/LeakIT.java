@@ -21,7 +21,9 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /** Hidden vs absent parity and pre-filter isolation across public, internal and restricted callers. */
-@TestPropertySource(properties = {"rag.env-prefix=t_leak", "rag.ask.min-similarity=0.95"})
+@TestPropertySource(properties = {"rag.env-prefix=t_leak", "rag.ask.min-similarity=0.95",
+        "rag.audit.index=t_leak-audit-v1", "rag.audit.reader-username=elastic",
+        "rag.audit.reader-password=test-password"})
 class LeakIT extends IntegrationTest {
 
     static final String QUERY = "tolerance for disruption";
@@ -37,9 +39,8 @@ class LeakIT extends IntegrationTest {
     @BeforeEach
     void setUp() {
         stub.reset();
-        if (admin.aliasInfo("t_leak-chunks").isEmpty()) {
-            TestIndex.rebuild(admin, writer, "t_leak", TestIndex.threeLevels(QUERY));
-        }
+        // Always rebuild: the hidden-only tests below replace this index and JUnit does not order tests.
+        TestIndex.rebuild(admin, writer, "t_leak", TestIndex.threeLevels(QUERY));
         if (!admin.exists(SECTIONS_INDEX)) {
             admin.createSections(SECTIONS_INDEX, Map.of("corpusVersion", "abcdef123456",
                     "chunkerVersion", "structural-v1-400-cl100k"));
@@ -54,6 +55,12 @@ class LeakIT extends IntegrationTest {
 
     JsonNode ask(String key, String question) {
         var r = Http.post(port, "/v1/ask", key, JSON.writeValueAsString(Map.of("question", question)));
+        assertThat(r.status()).as(r.body()).isEqualTo(200);
+        return JSON.readTree(r.body());
+    }
+
+    JsonNode audit(String answerId) {
+        var r = Http.get(port, "/v1/audit/" + answerId, ADMIN_KEY);
         assertThat(r.status()).as(r.body()).isEqualTo(200);
         return JSON.readTree(r.body());
     }
@@ -102,6 +109,26 @@ class LeakIT extends IntegrationTest {
         assertThat(a.get("title")).isEqualTo(b.get("title"));
         assertThat(a.get("detail")).isEqualTo(b.get("detail"));
         assertThat(a.get("status")).isEqualTo(b.get("status"));
+    }
+
+    @Test
+    void publicHiddenCauseIsAuditOnly() {
+        TestIndex.rebuild(admin, writer, "t_leak", TestIndex.hiddenOnly(QUERY));
+        JsonNode r = ask(PUBLIC_KEY, QUERY);
+        assertThat(r.toString()).doesNotContain("eb-a", "eb-secret", "internalRefusalCause");
+        JsonNode record = audit(r.get("answerId").asString());
+        assertThat(record.get("internalRefusalCause").asString()).isEqualTo("NO_ACCESSIBLE_SOURCES");
+        assertThat(record.get("renderedPrompt").isNull()).isTrue();
+    }
+
+    @Test
+    void internalRestrictedCauseIsAuditOnly() {
+        TestIndex.rebuild(admin, writer, "t_leak", TestIndex.restrictedOnly(QUERY));
+        JsonNode r = ask(INTERNAL_KEY, QUERY);
+        assertThat(r.get("status").asString()).isEqualTo("REFUSED");
+        assertThat(r.toString()).doesNotContain("eb-secret", "internalRefusalCause");
+        JsonNode record = audit(r.get("answerId").asString());
+        assertThat(record.get("internalRefusalCause").asString()).isEqualTo("NO_ACCESSIBLE_SOURCES");
     }
 
     private static TreeSet<String> fieldNames(JsonNode n) {

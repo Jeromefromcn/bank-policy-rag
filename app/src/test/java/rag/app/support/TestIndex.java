@@ -57,4 +57,9 @@ public final class TestIndex {
                 chunk("c-int", "eb-a", "internal", "2", query),
                 chunk("c-res", "eb-secret", "restricted", "9", query));
     }
+
+    /** Only a restricted chunk: an internal caller's filtered retrieval is empty. */
+    public static List<ChunkDocument> restrictedOnly(String query) {
+        return List.of(chunk("c-res", "eb-secret", "restricted", "9", query));
+    }
 }
