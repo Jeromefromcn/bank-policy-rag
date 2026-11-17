@@ -415,17 +415,19 @@ decision made on that trade-off.
 
 ### Phase 5 · Productionisation: permissions, audit, observability, CI gate
 
-- [ ] **Permissions**: authentication from §3.1 + pre-filter from §4.2.
+- [x] **Permissions**: authentication from §3.1 + pre-filter from §4.2.
       **Test**: a `public` user asking a `restricted` question must be refused, and the
       externally returned refusal reason must be identical to "not in the corpus".
-- [ ] **Audit**: all fields in §4.3 persisted; `replay` can replay any record; tests cover
+- [x] **Audit**: all fields in §4.3 persisted; `replay` can replay any record; tests cover
       the error raised when `contentHash` does not match.
-- [ ] **Observability**: three spans — retrieval, rerank, generation. Prometheus metrics:
+- [x] **Observability**: three spans — retrieval, rerank, generation. Prometheus metrics:
       empty-retrieval rate, refusal rate (by reason), token usage, per-stage latency.
 - [ ] **Indirect prompt injection tests**: design questions targeting `corpus/adversarial/`,
       verify that malicious instructions are not executed and restricted content does not
-      leak. Results go into the eval report.
-- [ ] **CI gate** (GitHub Actions): see §8.
+      leak. Results go into the eval report. (Deterministic tests pass; the live run awaits the
+      author's approval of `eval/injection.yaml`.)
+- [ ] **CI gate** (GitHub Actions): see §8. (Gate and baseline are green locally; the first remote
+      run awaits the branch push.)
 
 **Exit**: the eval gate in CI is green; the permission tests and injection tests each have a record.
 

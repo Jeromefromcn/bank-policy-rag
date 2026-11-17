@@ -53,7 +53,7 @@ Filled in before implementation; results go in this table.
 | Proxy-subnet reachability | From a container on the `proxy` network (`172.19.0.0/16`), `curl 172.19.0.1:8081/actuator/prometheus` returns `200` after the gitops firewall rule; a connection from outside that subnet is rejected | Pending |
 | Prometheus scrape job | Gitops adds target `172.19.0.1:8081`; a `rag_requests_total` sample appears in Prometheus | Pending |
 | arm64 GitHub runner | `ubuntu-24.04-arm` is available to the public repo; Docker works; the pinned `elasticsearch:9.5.5` image starts | Pending |
-| Testcontainers resource limits | The existing `EsTestContainer` limits are unchanged and `scripts/check-compose-limits.sh` still passes | Pending |
+| Testcontainers resource limits | The existing `EsTestContainer` limits are unchanged and `scripts/check-compose-limits.sh` still passes | Verified 2026-11-17: `check-compose-limits.sh` reports `ok: 5 services limited`; `EsTestContainer` still sets 1.5 GB / 2 CPUs |
 | Secrets for the manual live eval | `DEEPSEEK_API_KEY` is available to the workflow (or the run is local); PR CI needs none | Pending |
 
 The audit index name in this spec supersedes `rag-audit` in ROADMAP §4.3/§5 and in spec 00 §5; the
