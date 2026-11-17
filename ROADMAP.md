@@ -422,10 +422,10 @@ decision made on that trade-off.
       the error raised when `contentHash` does not match.
 - [x] **Observability**: three spans — retrieval, rerank, generation. Prometheus metrics:
       empty-retrieval rate, refusal rate (by reason), token usage, per-stage latency.
-- [ ] **Indirect prompt injection tests**: design questions targeting `corpus/adversarial/`,
+- [x] **Indirect prompt injection tests**: design questions targeting `corpus/adversarial/`,
       verify that malicious instructions are not executed and restricted content does not
-      leak. Results go into the eval report. (Deterministic tests pass; the live run awaits the
-      author's approval of `eval/injection.yaml`.)
+      leak. Results go into the eval report. (Deterministic tests pass; the live run is recorded
+      in `evidence/phase5-injection.md` after the `answer.v3` anti-repetition hardening.)
 - [ ] **CI gate** (GitHub Actions): see §8. (Gate and baseline are green locally; the first remote
       run awaits the branch push.)
 
