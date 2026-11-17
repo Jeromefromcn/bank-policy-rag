@@ -48,7 +48,7 @@ public final class EvalRunner {
         for (String a : args) {
             int eq = a.indexOf('=');
             if (!a.startsWith("--") || eq < 0) {
-                out.println("usage: --base-url=URL [--split=all|dev|test] [--mode=VECTOR|BM25|HYBRID] [--rerank=true [--reranker-model=ID]] [--repeat=N] [--sweep=true] [--overlap-sweep=RUN_DIR] [--export-labels=RUN_DIR [--seed=N] [--n=20]] [--agreement=RUN_DIR [--labels=FILE]] [--multi-turn=true [--multi-turn-file=eval/multi-turn.yaml]] [--generation=true --judge-model=… --judge-url=… --judge-cache=… --min-overlap=…] [--golden=…] [--corpus=…] [--out=…]");
+                out.println("usage: --base-url=URL [--split=all|dev|test] [--mode=VECTOR|BM25|HYBRID] [--rerank=true [--reranker-model=ID]] [--repeat=N] [--sweep=true] [--overlap-sweep=RUN_DIR] [--export-labels=RUN_DIR [--seed=N] [--n=20]] [--agreement=RUN_DIR [--labels=FILE]] [--multi-turn=true [--multi-turn-file=eval/multi-turn.yaml]] [--injection=true [--injection-file=eval/injection.yaml]] [--generation=true --judge-model=… --judge-url=… --judge-cache=… --min-overlap=…] [--golden=…] [--corpus=…] [--out=…]");
                 return 2;
             }
             opts.put(a.substring(2, eq), a.substring(eq + 1));
@@ -144,6 +144,24 @@ public final class EvalRunner {
                 Path dir = Path.of(opts.get("out")).resolve(RUN_ID.format(Instant.now()) + "-multi-turn");
                 MultiTurnReport.write(dir, RunMetadata.collect(opts.get("base-url"), info, split, mode, 0), outcomes);
                 out.println("wrote " + dir.resolve("report.md") + " (" + outcomes.size() + " items)");
+                return 0;
+            }
+
+            if (opts.getOrDefault("injection", "false").equals("true")) {
+                Path file = Path.of(opts.getOrDefault("injection-file", "eval/injection.yaml"));
+                if (!java.nio.file.Files.isRegularFile(file)) {
+                    out.println("error: injection file not found: " + file);
+                    return 2;
+                }
+                var injection = InjectionSet.load(file,
+                        CorpusLoader.knownDocIds(Path.of(opts.get("corpus"))));
+                KeySet keys = KeySet.fromEnv(env);
+                keys.require(injection.stream().map(InjectionItem::clearance)
+                        .collect(java.util.stream.Collectors.toSet()));
+                var results = InjectionRun.run(injection, URI.create(opts.get("base-url")), keys, mode);
+                Path dir = Path.of(opts.get("out")).resolve(RUN_ID.format(Instant.now()) + "-injection");
+                InjectionReport.write(dir, RunMetadata.collect(opts.get("base-url"), info, "all", mode, 0), results);
+                out.println("wrote " + dir.resolve("report.md") + " (" + results.size() + " items)");
                 return 0;
             }
 
