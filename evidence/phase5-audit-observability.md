@@ -49,8 +49,11 @@ mismatch. Replay does not write a second audit record.
 
 ## 3. Pending
 
-The live trace and Prometheus scrape evidence depend on the gitops changes: `rag_audit_reader` /
-`rag_audit_reader_dev`, `create_index` on `audit-<prefix>-*`, the host firewall allow for `172.19.0.0/16 → 8081`
-and the shared Prometheus scrape target `172.19.0.1:8081`. Until they are granted, the record is the test suite
-above; the spec §2 rows remain pending. The app starts and audits with the write user; only read/replay and the
-shared scrape are blocked.
+The live injection run on 2026-11-17 confirmed the write path: the app created `audit-rag_dev-v1` at startup
+and all 25 `/v1/ask` calls wrote records without a `503`, so `create_index` on `audit-<prefix>-*` is granted.
+
+The remaining live evidence depends on the gitops changes: `rag_audit_reader` / `rag_audit_reader_dev` (read and
+replay), the host firewall allow for `172.19.0.0/16 → 8081` and the shared Prometheus scrape target
+`172.19.0.1:8081` (the shared Jaeger endpoint at `127.0.0.1:30117` accepted OTLP exports without an error, but
+arrival was not confirmed). Until they are granted, the record is the test suite above; the spec §2 rows remain
+pending. Only read/replay, the shared scrape and the trace confirmation are blocked.
