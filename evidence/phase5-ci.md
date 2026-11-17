@@ -43,17 +43,22 @@ SPM-spanning items. The full-corpus metrics remain local (evidence phases 1–4)
 `ci.yml` pins checkout v4.2.2 (`11bd719…`), setup-java v6.3.0 (`d1374f8…`) and setup-gradle v6.4.1
 (`8da46b5…`); the optional `live-eval.yml` was skipped (generation evidence comes from local runs).
 
-## 4. Remote run
+## 4. Remote runs and integration
 
 | Item | Value |
 |---|---|
-| Run | https://github.com/Jeromefromcn/bank-policy-rag/actions/runs/44110310962 |
+| First run | https://github.com/Jeromefromcn/bank-policy-rag/actions/runs/44110310962 |
 | Workflow / job | `ci` / `test` |
 | Commit | `cb576dc` (branch `phase5-productionisation`) |
 | Runner | `ubuntu-24.04-arm`; job completed in 4m31s |
 | Result | success (2026-11-17T15:05:25Z → 15:10:02Z) |
 | Steps | unit and integration tests, Example Bank retrieval gate, compose limits, no-SPM check: all success |
 | Check name | `test` (workflow `ci`); use this as the required status check |
+| Pull request | https://github.com/Jeromefromcn/bank-policy-rag/pull/1 — merged 2026-11-17 |
+| Merge commit | `a9c14d2` on `main` |
+| Post-merge run | https://github.com/Jeromefromcn/bank-policy-rag/actions/runs/44119912036 — success |
+| Branch protection | `main` requires the `test` check; force pushes and deletions disabled; admins can bypass |
 
 The only annotation is the non-blocking Node 20 deprecation notice for `actions/checkout@v4.2.2`.
-The first remote run is green, so the Phase 5 exit criterion is met and the box is ticked in `ROADMAP.md`.
+The first remote run is green, so the Phase 5 exit criterion is met and the box is ticked in `ROADMAP.md`;
+the post-merge run on `main` is green as well.

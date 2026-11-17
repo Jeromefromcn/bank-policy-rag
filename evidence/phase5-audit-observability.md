@@ -57,3 +57,17 @@ replay), the host firewall allow for `172.19.0.0/16 → 8081` and the shared Pro
 `172.19.0.1:8081` (the shared Jaeger endpoint at `127.0.0.1:30117` accepted OTLP exports without an error, but
 arrival was not confirmed). Until they are granted, the record is the test suite above; the spec §2 rows remain
 pending. Only read/replay, the shared scrape and the trace confirmation are blocked.
+
+## 4. Impact if the gitops changes are not applied
+
+Recorded 2026-11-18 as a known open item; it does not block Phase 5's exit criterion.
+
+| Unapplied item | Observable symptom | Operational impact |
+|---|---|---|
+| `rag_audit_reader` / `rag_audit_reader_dev` | `GET /v1/audit/{id}` and `POST /v1/audit/{id}/replay` return `503 audit-reader-unavailable` (`AuditReader` has no client when the credentials are blank) | Audit records are still written (the live run proved `create_index` and 25 writes), but the service cannot read or replay them. Investigation and replay need direct ES admin access, which bypasses the admin-only endpoint and the separate read-only user |
+| Prometheus target and firewall | No `rag_requests`, `rag_refusals`, `rag_retrieval_empty`, `rag_tokens` or `rag_stage_latency` samples in the shared Prometheus | No shared dashboards or alerts for refusal spikes, empty retrieval, latency regressions or token cost. `/actuator/prometheus` works locally, but the default bind is `127.0.0.1`; a scrape also needs `MANAGEMENT_ADDRESS=0.0.0.0` and the proxy-subnet firewall rule |
+| Jaeger trace arrival | OTLP export succeeds without an error, but no trace is confirmed in the shared Jaeger | The `traceId` in each audit record cannot be followed into a waterfall; debugging latency or errors falls back to logs. If the endpoint is a black hole, traces are lost silently |
+
+Core answering is unaffected: retrieval, permission filtering, citations, refusals, injection defences and the CI
+gate all work without these changes. Priority for operations is the audit reader (it makes a delivered endpoint
+unusable), then the Prometheus scrape, then trace confirmation.

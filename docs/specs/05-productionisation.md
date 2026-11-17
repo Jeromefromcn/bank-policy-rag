@@ -58,7 +58,8 @@ Filled in before implementation; results go in this table.
 
 The audit index name in this spec supersedes `rag-audit` in ROADMAP §4.3/§5 and in spec 00 §5; the
 gitops answer fixes the final spelling. Until it is granted, the implementation uses
-`audit-<envPrefix>-v1` and records the pending state in the evidence.
+`audit-<envPrefix>-v1` and records the pending state in the evidence. The impact of leaving the pending
+gitops items unapplied is recorded in `evidence/phase5-audit-observability.md` §4.
 
 ---
 
