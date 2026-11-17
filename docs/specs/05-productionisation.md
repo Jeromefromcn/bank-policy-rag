@@ -199,7 +199,7 @@ One document per completed response. Fields, all from ROADMAP §4.3 plus the add
 | `question` | The original text |
 | `rewrittenQuery` | Non-null only when Phase 4 rewrote a follow-up |
 | `retrieval` | `{mode, topK, rerank, bestVectorSimilarity, bestRerankProbability, hits:[{chunkId, contentHash, rank, score, docId, sectionPath, classification}]}` |
-| `promptTemplateVersion` | e.g. `answer.v2`; null for `/search` |
+| `promptTemplateVersion` | e.g. `answer.v3`; null for `/search` |
 | `renderedPrompt` | The **full final prompt** sent to the model; null for `/search` |
 | `model` | `{provider, id, temperature, maxTokens}`; null for `/search` |
 | `answer`, `citations`, `status`, `refusalReason` | As returned; `citations` keeps the quote; `status = OK` for `/search` |
@@ -276,7 +276,7 @@ an operations role.)
 { "answerId": "a_01J...", "replayOf": "a_01J...",
   "original": { "status": "...", "answer": "...", "citations": [], "usage": {}, "latencyMs": {} },
   "replay":   { "status": "...", "answer": "...", "citations": [], "refusalReason": null, "usage": {} },
-  "promptTemplateVersion": "answer.v2", "modelCall": true,
+  "promptTemplateVersion": "answer.v3", "modelCall": true,
   "model": { "recorded": "...", "current": "...", "matches": true },
   "contentHashes": { "checked": 5, "matched": 5 },
   "latencyMs": { "generation": 900, "audit": 12 } }

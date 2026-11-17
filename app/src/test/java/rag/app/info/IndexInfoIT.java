@@ -39,7 +39,7 @@ class IndexInfoIT extends IntegrationTest {
         var r = Http.get(port, "/v1/info", KEY);
         var rag = JsonMapper.builder().build().readTree(r.body());
         assertThat(rag.get("generationModel").asString()).isEqualTo("test-gen-model");
-        assertThat(rag.get("answerPrompt").asString()).isEqualTo("answer.v2");
+        assertThat(rag.get("answerPrompt").asString()).isEqualTo("answer.v3");
         assertThat(rag.get("minSimilarity").asString()).isEqualTo("0.42");
     }
 }

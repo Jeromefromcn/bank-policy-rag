@@ -17,14 +17,14 @@ import org.springframework.stereotype.Component;
 import rag.app.search.SearchHit;
 
 /**
- * Renders {@code prompts/answer.v2.st}: fenced, numbered sources (spec 03 §4). Templates are never edited in place; a change is a new
+ * Renders {@code prompts/answer.v3.st}: fenced, numbered sources (spec 03 §4). Templates are never edited in place; a change is a new
  * version (spec 00 §5). Placeholders are substituted in one pass over the template only, so
  * retrieved text or a question containing {@code {question}} is never expanded.
  */
 @Component
 public class PromptRenderer {
 
-    static final String VERSION = "answer.v2";
+    static final String VERSION = "answer.v3";
     /** The reply the model gives when the sources do not contain the answer (spec 03 §4). */
     public static final String NO_ANSWER = "NO_ANSWER";
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{(sources|question)}");
