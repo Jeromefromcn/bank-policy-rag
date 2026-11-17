@@ -144,6 +144,7 @@ public class AskService {
             long p0 = System.nanoTime();
             InternalRefusalCause cause = probe.cause(question, principal);
             long probeMs = ms(p0);
+            metrics.emptyRetrieval("ask", cause);
             return new AnswerOutcome(refused(answerId, LOW_RETRIEVAL_SCORE, "no accessible hits", null, retrievalMs,
                     rerankMs, 0, probeMs), List.of(), null, best, bestRerank, cause, probeMs);
         }

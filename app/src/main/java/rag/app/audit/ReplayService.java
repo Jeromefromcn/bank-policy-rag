@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -91,9 +92,20 @@ public class ReplayService {
         }
 
         long t0 = System.nanoTime();
+        ChatOptions options = null;
+        if (record.model() != null) {
+            var builder = ChatOptions.builder();
+            if (record.model().temperature() != null) {
+                builder.temperature(record.model().temperature());
+            }
+            if (record.model().maxTokens() != null) {
+                builder.maxTokens(record.model().maxTokens());
+            }
+            options = builder.build();
+        }
         ChatResponse response;
         try {
-            response = chat.call(PromptRenderer.parse(record.renderedPrompt()));
+            response = chat.call(PromptRenderer.parse(record.renderedPrompt(), options));
         } catch (RuntimeException e) {
             throw new GenerationUnavailableException("replay generation failed: " + e.getMessage(), e);
         }

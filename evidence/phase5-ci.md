@@ -28,8 +28,8 @@
 | exact-term | 5 | 1.000 | 0.633 | 0.726 |
 | multi-hop | 2 | 1.000 | 1.000 | 0.885 |
 
-`./gradlew :app:ciGate` then passed against this baseline. Excluded items are listed by id in the run output; the
-12 are SPM-only or SPM-spanning items. The full-corpus metrics remain local (evidence phases 1–4).
+`./gradlew :app:ciGate` then passed against this baseline. The excluded ids are carried in `Result.excludedIds`; the gate output prints counts only. The 12 are SPM-only or
+SPM-spanning items. The full-corpus metrics remain local (evidence phases 1–4).
 
 ## 3. Local checks
 

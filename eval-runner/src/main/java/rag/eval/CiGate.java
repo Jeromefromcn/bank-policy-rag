@@ -98,10 +98,36 @@ public final class CiGate {
                     Instant.now().toString()));
             out.println("wrote baseline " + baseline);
         } else {
-            assertNoRegression(result, Baseline.read(baseline));
+            Baseline stored = Baseline.read(baseline);
+            assertProvenance(stored, info);
+            assertNoRegression(result, stored);
             out.println("gate passed against " + baseline);
         }
         return result;
+    }
+
+    /** A stale baseline (different corpus, chunker, model or gate configuration) is a hard failure. */
+    public static void assertProvenance(Baseline baseline, Map<String, String> info) {
+        if (!"example-bank".equals(baseline.scope())) {
+            throw new IllegalStateException("baseline scope " + baseline.scope() + " is not example-bank");
+        }
+        if (!"HYBRID".equals(baseline.mode())) {
+            throw new IllegalStateException("baseline mode " + baseline.mode() + " is not HYBRID; regenerate it");
+        }
+        if (baseline.topK() != TOP_K || baseline.rerank()) {
+            throw new IllegalStateException("baseline gate configuration (topK " + baseline.topK() + ", rerank "
+                    + baseline.rerank() + ") differs from topK " + TOP_K + ", no rerank; regenerate it");
+        }
+        check("corpusVersion", baseline.corpusVersion(), info.get("corpusVersion"));
+        check("chunkerVersion", baseline.chunkerVersion(), info.get("chunkerVersion"));
+        check("embeddingModel", baseline.embeddingModel(), info.get("embeddingModel"));
+    }
+
+    private static void check(String name, String expected, String actual) {
+        if (expected == null || actual == null || !expected.equals(actual)) {
+            throw new IllegalStateException("baseline " + name + " " + expected + " does not match the running index ("
+                    + actual + "); regenerate the baseline with -PciWriteBaseline=true");
+        }
     }
 
     public static void assertNoRegression(Result run, Baseline baseline) {

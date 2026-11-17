@@ -4,6 +4,8 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch._types.OpType;
 import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import rag.app.RagProperties;
@@ -17,6 +19,7 @@ import rag.app.web.ProblemTypes;
 @Component
 public class AuditStore {
 
+    private static final Logger LOG = LoggerFactory.getLogger(AuditStore.class);
     private final ElasticsearchClient client;
     private final RagProperties props;
 
@@ -32,8 +35,9 @@ public class AuditStore {
         try {
             client.index(i -> i.index(props.auditIndex()).id(record.id()).opType(OpType.Create).document(record));
         } catch (ElasticsearchException | IOException e) {
+            LOG.warn("audit write failed for {}: {}", record.id(), e.getMessage(), e);
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, ProblemTypes.AUDIT_UNAVAILABLE,
-                    "audit record could not be written: " + e.getMessage());
+                    "audit record could not be written");
         }
     }
 }

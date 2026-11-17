@@ -68,6 +68,19 @@ class AuditStoreIT extends IntegrationTest {
     }
 
     @Test
+    void failureDetailIsGeneric() throws Exception {
+        store.write(sample());
+        client.indices().close(c -> c.index(INDEX));
+        try {
+            assertThatThrownBy(() -> store.write(sample()))
+                    .isInstanceOf(ApiException.class)
+                    .hasMessage("audit record could not be written");
+        } finally {
+            client.indices().open(o -> o.index(INDEX));
+        }
+    }
+
+    @Test
     void unwritableIndexFailsClosed() throws Exception {
         store.write(sample());
         client.indices().close(c -> c.index(INDEX));

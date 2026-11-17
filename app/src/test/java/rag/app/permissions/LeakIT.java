@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +36,7 @@ class LeakIT extends IntegrationTest {
     @Autowired ChunkWriter writer;
     @Autowired SectionWriter sections;
     @Autowired StubChatModel stub;
+    @Autowired MeterRegistry meters;
 
     @BeforeEach
     void setUp() {
@@ -119,6 +121,8 @@ class LeakIT extends IntegrationTest {
         JsonNode record = audit(r.get("answerId").asString());
         assertThat(record.get("internalRefusalCause").asString()).isEqualTo("NO_ACCESSIBLE_SOURCES");
         assertThat(record.get("renderedPrompt").isNull()).isTrue();
+        assertThat(meters.get("rag.retrieval.empty").tag("endpoint", "ask")
+                .tag("cause", "no_accessible_sources").counter().count()).isGreaterThanOrEqualTo(1);
     }
 
     @Test

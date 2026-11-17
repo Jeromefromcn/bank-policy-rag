@@ -54,6 +54,7 @@ public class SearchController {
             long t0 = System.nanoTime();
             cause = probe.cause(request.query(), principal);
             probeMs = ms(t0);
+            metrics.emptyRetrieval("search", cause);
         }
 
         AuditRecord record = searchRecord(queryId, request.query(), principal, options, r, cause, probeMs);

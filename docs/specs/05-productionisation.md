@@ -551,7 +551,7 @@ New or changed properties (defaults in `application.yaml`, secrets in `.env`):
 | `management.tracing.sampling.probability` | `1.0` | Dev sampling; property-driven |
 | `management.otlp.tracing.endpoint` | `http://127.0.0.1:30117/v1/traces` | Shared Jaeger |
 | `management.tracing.enabled` | `true` (false in test) | CI exports nothing |
-| `rag.fixture.dir` | empty | Fixture directory for `FixtureEmbedder` in the gate test |
+| `rag.embedding.fixture-dir` | empty | Fixture directory for `FixtureEmbedder` in the gate test |
 
 `.env.example` gains `RAG_KEY_PUBLIC`, `RAG_KEY_INTERNAL`, `RAG_KEY_ADMIN`, `ES_AUDIT_READER_USERNAME`,
 `ES_AUDIT_READER_PASSWORD`, `MANAGEMENT_PORT`, `MANAGEMENT_ADDRESS`, `OTLP_ENDPOINT`,

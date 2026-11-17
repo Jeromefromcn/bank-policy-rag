@@ -69,6 +69,28 @@ class CiGateTest {
     }
 
     @Test
+    void staleCorpusVersionIsAHardFailure() {
+        assertThatThrownBy(() -> CiGate.assertProvenance(baseline(0.80, 0.70),
+                Map.of("corpusVersion", "new", "chunkerVersion", "ch", "embeddingModel", "m")))
+                .hasMessageContaining("corpusVersion").hasMessageContaining("regenerate");
+    }
+
+    @Test
+    void staleEmbeddingModelIsAHardFailure() {
+        assertThatThrownBy(() -> CiGate.assertProvenance(baseline(0.80, 0.70),
+                Map.of("corpusVersion", "c", "chunkerVersion", "ch", "embeddingModel", "other")))
+                .hasMessageContaining("embeddingModel");
+    }
+
+    @Test
+    void wrongGateConfigurationIsAHardFailure() {
+        assertThatThrownBy(() -> CiGate.assertProvenance(new Baseline("example-bank", "c", "ch", "m", "VECTOR", 5,
+                true, 30, 24, 6, 12, new Baseline.Overall(0.8, 0.7, 0.0, 24), Map.of(), "x"),
+                Map.of("corpusVersion", "c", "chunkerVersion", "ch", "embeddingModel", "m")))
+                .hasMessageContaining("mode");
+    }
+
+    @Test
     void missingBaselineFailsWithAWriteBaselineHint() {
         assertThatThrownBy(() -> Baseline.read(Path.of("missing.json")))
                 .hasMessageContaining("ciWriteBaseline");

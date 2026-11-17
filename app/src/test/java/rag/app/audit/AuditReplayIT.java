@@ -63,6 +63,8 @@ class AuditReplayIT extends IntegrationTest {
         assertThat(body.get("replay").get("answer").asString()).isEqualTo("Replayed [1].");
         assertThat(body.get("contentHashes").get("checked").asInt())
                 .isEqualTo(body.get("contentHashes").get("matched").asInt());
+        assertThat(stub.lastPrompt().getOptions().getTemperature()).isEqualTo(0.0);
+        assertThat(stub.lastPrompt().getOptions().getMaxTokens()).isEqualTo(1024);
     }
 
     @Test

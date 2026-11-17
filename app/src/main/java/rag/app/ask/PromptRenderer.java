@@ -8,8 +8,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.stereotype.Component;
 import rag.app.search.SearchHit;
@@ -95,14 +97,20 @@ public class PromptRenderer {
 
     /** Rebuilds the two messages from the audit record's canonical prompt text. */
     public static Prompt parse(String text) {
+        return parse(text, null);
+    }
+
+    /** As {@link #parse(String)}, with the recorded options so replay reproduces them too. */
+    public static Prompt parse(String text, ChatOptions options) {
         String prefix = "[system]\n";
         String marker = "\n[user]\n";
         int u = text == null ? -1 : text.indexOf(marker);
         if (text == null || !text.startsWith(prefix) || u < 0) {
             throw new IllegalArgumentException("malformed rendered prompt");
         }
-        return new Prompt(List.of(new SystemMessage(text.substring(prefix.length(), u)),
-                new UserMessage(text.substring(u + marker.length()))));
+        List<Message> messages = List.of(new SystemMessage(text.substring(prefix.length(), u)),
+                new UserMessage(text.substring(u + marker.length())));
+        return options == null ? new Prompt(messages) : new Prompt(messages, options);
     }
 
     /** A source must not be able to close or open a fence: any run of three or more '<' is replaced by U+2039 marks. */
