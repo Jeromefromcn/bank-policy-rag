@@ -23,15 +23,27 @@ public final class CorpusLoader {
         this.root = corpusRoot;
     }
 
+    /** Which part of the corpus to load (spec 05 §7.2): the whole corpus, or Markdown only for CI. */
+    public enum Scope {
+        ALL,
+        EXAMPLE_BANK
+    }
+
     public List<ParsedDocument> load() {
+        return load(Scope.ALL);
+    }
+
+    public List<ParsedDocument> load(Scope scope) {
         List<ParsedDocument> docs = new ArrayList<>();
-        for (Manifest.Module module : Manifest.load(root.resolve("manifest.yaml")).modules()) {
-            Path pdf = root.resolve("raw").resolve(module.file());
-            verify(pdf, module);
-            try {
-                docs.add(PdfParser.parse(pdf, module.docId(), module.title(), module.version()));
-            } catch (IllegalStateException e) {
-                throw new IllegalStateException(module.file() + ": " + e.getMessage(), e);
+        if (scope == Scope.ALL) {
+            for (Manifest.Module module : Manifest.load(root.resolve("manifest.yaml")).modules()) {
+                Path pdf = root.resolve("raw").resolve(module.file());
+                verify(pdf, module);
+                try {
+                    docs.add(PdfParser.parse(pdf, module.docId(), module.title(), module.version()));
+                } catch (IllegalStateException e) {
+                    throw new IllegalStateException(module.file() + ": " + e.getMessage(), e);
+                }
             }
         }
         for (Path md : CorpusFiles.markdown(root)) {
@@ -48,8 +60,14 @@ public final class CorpusLoader {
 
     /** docIds from the manifest and Markdown front matter, without reading any PDF. */
     public static Set<String> knownDocIds(Path corpusRoot) {
+        return knownDocIds(corpusRoot, Scope.ALL);
+    }
+
+    public static Set<String> knownDocIds(Path corpusRoot, Scope scope) {
         Set<String> ids = new LinkedHashSet<>();
-        Manifest.load(corpusRoot.resolve("manifest.yaml")).modules().forEach(m -> ids.add(m.docId()));
+        if (scope == Scope.ALL) {
+            Manifest.load(corpusRoot.resolve("manifest.yaml")).modules().forEach(m -> ids.add(m.docId()));
+        }
         for (Path md : CorpusFiles.markdown(corpusRoot)) {
             ids.add(MarkdownParser.parse(read(md), md.toString()).docId());
         }
