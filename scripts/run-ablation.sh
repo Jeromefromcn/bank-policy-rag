@@ -31,6 +31,7 @@ fi
 
 prefix="${RAG_ENV_PREFIX:-rag_dev}"
 port="${ABLATION_PORT:-18080}"
+management_port="${MANAGEMENT_PORT:-8081}"
 commit="$(git rev-parse HEAD)"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 out="eval/runs/ablation-$table-$stamp"
@@ -77,7 +78,7 @@ for group in "${groups[@]}"; do
     env $envs java -Xmx1g -jar "$jar" --server.port="$port" > "$out/$name.app.log" 2>&1 &
     app_pid=$!
     for _ in $(seq 120); do
-      curl -sf "http://127.0.0.1:$port/actuator/health" >/dev/null 2>&1 && break
+      curl -sf "http://127.0.0.1:$management_port/actuator/health" >/dev/null 2>&1 && break
       kill -0 "$app_pid" 2>/dev/null || { echo "error: app for $name exited; see $out/$name.app.log" >&2; exit 1; }
       sleep 2
     done

@@ -35,6 +35,7 @@ fi
 
 prefix="${RAG_ENV_PREFIX:-rag_dev}"
 port="${GENERATION_PORT:-18081}"
+management_port="${MANAGEMENT_PORT:-8081}"
 chunks="$prefix-chunks-nomic768-struct400-v1"
 sections="$prefix-sections-struct400-v1"
 out="eval/runs"
@@ -62,7 +63,7 @@ trap stop_app EXIT
 
 # Env-defined list entries replace the YAML list, so all three callers (0 = dev, 1 = internal, 2 = public) are set here.
 key_vars="RAG_SECURITY_APIKEYS_0_KEY RAG_SECURITY_APIKEYS_0_PRINCIPAL RAG_SECURITY_APIKEYS_0_CLEARANCE RAG_SECURITY_APIKEYS_1_KEY RAG_SECURITY_APIKEYS_1_PRINCIPAL RAG_SECURITY_APIKEYS_1_CLEARANCE RAG_SECURITY_APIKEYS_2_KEY RAG_SECURITY_APIKEYS_2_PRINCIPAL RAG_SECURITY_APIKEYS_2_CLEARANCE"
-echo "+ START nomic: RAG_ENV_PREFIX=$prefix RAG_EMBEDDING_MODEL=nomic RAG_CHUNKS_INDEX=$chunks RAG_SECTIONS_INDEX=$sections RAG_ASK_MIN_SIMILARITY=${RAG_ASK_MIN_SIMILARITY:-0.0} $key_vars java -Xmx1g -jar $jar --server.port=$port"
+echo "+ START nomic: RAG_ENV_PREFIX=$prefix RAG_EMBEDDING_MODEL=nomic RAG_CHUNKS_INDEX=$chunks RAG_SECTIONS_INDEX=$sections RAG_ASK_MIN_SIMILARITY=${RAG_ASK_MIN_SIMILARITY:-0.0} MANAGEMENT_PORT=$management_port $key_vars java -Xmx1g -jar $jar --server.port=$port"
 if [[ "$dry" -eq 0 ]]; then
   RAG_ENV_PREFIX="$prefix" RAG_EMBEDDING_MODEL=nomic RAG_CHUNKS_INDEX="$chunks" RAG_SECTIONS_INDEX="$sections" \
   RAG_ASK_MIN_SIMILARITY="${RAG_ASK_MIN_SIMILARITY:-0.0}" \
@@ -73,7 +74,7 @@ if [[ "$dry" -eq 0 ]]; then
   app_pid=$!
   ready=0
   for _ in $(seq 120); do
-    if curl -sf "http://127.0.0.1:$port/actuator/health" >/dev/null 2>&1; then ready=1; break; fi
+    if curl -sf "http://127.0.0.1:$management_port/actuator/health" >/dev/null 2>&1; then ready=1; break; fi
     kill -0 "$app_pid" 2>/dev/null || { echo "error: app exited; see $out/generation-$step.app.log" >&2; exit 1; }
     sleep 2
   done

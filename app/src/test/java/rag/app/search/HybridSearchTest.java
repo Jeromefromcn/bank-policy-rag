@@ -30,7 +30,7 @@ class HybridSearchTest {
     final HybridSearch search = new HybridSearch(vector, bm25, LEG_SIZE);
 
     static SearchHit hit(String id, Map<String, Object> scores) {
-        return new SearchHit(id, "s-" + id, "doc", "Title", List.of("1"), List.of("1"), List.of(), "public", 0.5, scores, "text " + id);
+        return new SearchHit(id, "s-" + id, "doc", "Title", List.of("1"), List.of("1"), List.of(), "public", 0.5, scores, "text " + id, "h-" + id);
     }
 
     static SearchHit vec(String id, int rank) {

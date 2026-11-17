@@ -22,7 +22,7 @@ How to track progress:
 - [x] **Phase 2** · Structural chunking + hybrid + embedding ablation — `evidence/phase2-*.md` (two comparison tables)
 - [x] **Phase 3** · Citations, refusals, generation-side eval — `evidence/phase3-*.md`
 - [x] **Phase 4** · Rerank and query rewriting (optional) — `evidence/phase4-*.md`
-- [ ] **Phase 5** · Permissions, audit, observability, CI gate — green CI gate + permission and injection test records
+- [x] **Phase 5** · Permissions, audit, observability, CI gate — green CI gate + permission and injection test records
 - [ ] **Phase 6** · MCP server — `evidence/phase6-*.md` (integration record)
 - [ ] **Phase 7** · README and article — README results table + published article
 
@@ -415,17 +415,20 @@ decision made on that trade-off.
 
 ### Phase 5 · Productionisation: permissions, audit, observability, CI gate
 
-- [ ] **Permissions**: authentication from §3.1 + pre-filter from §4.2.
+- [x] **Permissions**: authentication from §3.1 + pre-filter from §4.2.
       **Test**: a `public` user asking a `restricted` question must be refused, and the
       externally returned refusal reason must be identical to "not in the corpus".
-- [ ] **Audit**: all fields in §4.3 persisted; `replay` can replay any record; tests cover
+- [x] **Audit**: all fields in §4.3 persisted; `replay` can replay any record; tests cover
       the error raised when `contentHash` does not match.
-- [ ] **Observability**: three spans — retrieval, rerank, generation. Prometheus metrics:
+- [x] **Observability**: three spans — retrieval, rerank, generation. Prometheus metrics:
       empty-retrieval rate, refusal rate (by reason), token usage, per-stage latency.
-- [ ] **Indirect prompt injection tests**: design questions targeting `corpus/adversarial/`,
+- [x] **Indirect prompt injection tests**: design questions targeting `corpus/adversarial/`,
       verify that malicious instructions are not executed and restricted content does not
-      leak. Results go into the eval report.
-- [ ] **CI gate** (GitHub Actions): see §8.
+      leak. Results go into the eval report. (Deterministic tests pass; the live run is recorded
+      in `evidence/phase5-injection.md` after the `answer.v3` anti-repetition hardening.)
+- [x] **CI gate** (GitHub Actions): see §8. (Gate and baseline green locally; the first remote
+      run, `44110310962` on commit `cb576dc`, is green on `ubuntu-24.04-arm`; see
+      `evidence/phase5-ci.md` §4.)
 
 **Exit**: the eval gate in CI is green; the permission tests and injection tests each have a record.
 

@@ -72,7 +72,7 @@ public class VectorRetriever {
             // ES reports cosine kNN scores as (1 + cosine) / 2.
             scores.put("similarity", 2 * score - 1);
             out.add(new SearchHit(d.chunkId(), d.sectionId(), d.docId(), d.docTitle(), d.sectionPath(), d.coveredSections(),
-                    d.pages(), d.classification(), score, scores, d.content()));
+                    d.pages(), d.classification(), score, scores, d.content(), d.contentHash()));
         }
         return out;
     }

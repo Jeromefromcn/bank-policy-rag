@@ -11,5 +11,5 @@ public record SearchResponse(String queryId, List<SearchHit> hits, Diagnostics d
 
     public record Diagnostics(Double bestVectorSimilarity, Double bestRerankProbability, Latency latencyMs) {}
 
-    public record Latency(long retrieval, long rerank) {}
+    public record Latency(long retrieval, long rerank, long audit) {}
 }

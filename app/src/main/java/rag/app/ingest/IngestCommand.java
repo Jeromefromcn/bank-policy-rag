@@ -74,6 +74,10 @@ public class IngestCommand implements ApplicationRunner {
         }
         boolean recreate = args.containsOption("recreate");
         boolean promote = args.containsOption("promote");
+        String scope = args.containsOption("scope") ? args.getOptionValues("scope").getFirst() : "all";
+        if (!List.of("all", "example-bank").contains(scope)) {
+            throw new IllegalArgumentException("--scope must be all or example-bank, got " + scope);
+        }
         String kind = args.containsOption("chunker") ? args.getOptionValues("chunker").getFirst() : props.chunking().kind();
         boolean structural = kind.equals("structural");
         if (!structural && !kind.equals("fixed")) {
@@ -92,7 +96,8 @@ public class IngestCommand implements ApplicationRunner {
         }
 
         long t0 = System.nanoTime();
-        List<ParsedDocument> docs = new CorpusLoader(root).load();
+        List<ParsedDocument> docs = new CorpusLoader(root).load(
+                scope.equals("example-bank") ? CorpusLoader.Scope.EXAMPLE_BANK : CorpusLoader.Scope.ALL);
         String corpusVersion = CorpusVersion.compute(root);
         // Sections do not depend on the embedding model, so another model's ingest reuses them; fail early
         // (before any embedding work) if they were built from a different corpus.

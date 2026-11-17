@@ -9,8 +9,22 @@ rag:
         principal: public-tester
         clearance: public
         roles: []
+      - key: internal-key
+        principal: carol
+        clearance: internal
+        roles: []
+      - key: admin-key
+        principal: admin
+        clearance: restricted
+        roles: [admin]
 spring:
   ai:
     model:
       chat: none
       embedding: none
+
+management:
+  server:
+    port: 0
+  tracing:
+    enabled: false

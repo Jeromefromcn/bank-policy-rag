@@ -54,9 +54,9 @@ public class SearchClient {
                 whole(diag.path("latencyMs").path("rerank")));
     }
 
-    /** The {@code rag} section of {@code /actuator/info}: corpus, chunker and embedding versions. */
+    /** The version map from {@code /v1/info}: corpus, chunker and embedding versions. */
     public Map<String, String> info() {
-        JsonNode rag = http.get("/actuator/info").get("rag");
+        JsonNode rag = http.get("/v1/info");
         Map<String, String> out = new LinkedHashMap<>();
         if (rag != null) {
             rag.properties().forEach(e -> out.put(e.getKey(), e.getValue().asString()));

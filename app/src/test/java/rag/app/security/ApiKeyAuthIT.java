@@ -24,13 +24,28 @@ class ApiKeyAuthIT extends IntegrationTest {
     }
 
     @Test
-    void healthIsOpen() {
-        assertThat(Http.get(port, "/actuator/health", null).status()).isEqualTo(200);
+    void apiPortDoesNotServeHealth() {
+        // Actuator lives on the management port (ManagementIT checks it there).
+        assertThat(Http.get(port, "/actuator/health", null).status()).isEqualTo(404);
     }
 
     @Test
     void validKeyPassesAuth() {
         assertThat(Http.get(port, "/v1/does-not-exist", KEY).status()).isEqualTo(404);
         assertThat(Http.get(port, "/v1/does-not-exist", PUBLIC_KEY).status()).isEqualTo(404);
+    }
+
+    @Test
+    void auditEndpointWithoutAdminRoleIs403Problem() {
+        var r = Http.get(port, "/v1/audit/a_unknown", KEY);
+        assertThat(r.status()).isEqualTo(403);
+        assertThat(r.contentType()).startsWith("application/problem+json");
+        assertThat(r.body()).contains("urn:rag:problem:forbidden");
+    }
+
+    @Test
+    void auditEndpointWithAdminKeyPassesTheRoleCheck() {
+        // The controller exists now; with no reader credentials in this profile it answers 503, not 403/401.
+        assertThat(Http.get(port, "/v1/audit/a_unknown", ADMIN_KEY).status()).isEqualTo(503);
     }
 }

@@ -1,5 +1,6 @@
 package rag.app.search;
 
+import io.micrometer.observation.ObservationRegistry;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -7,6 +8,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import rag.app.RagProperties;
+import rag.app.metrics.Observations;
 import rag.app.rerank.Reranker;
 import rag.app.security.Principal;
 import rag.core.chunk.TokenCounter;
@@ -32,21 +34,37 @@ public class RetrievalPipeline {
     private final TokenCounter tokens;
     private final int candidates;
     private final int maxPassageTokens;
+    private final ObservationRegistry observations;
 
     @Autowired
-    public RetrievalPipeline(HybridSearch search, Reranker reranker, RagProperties props) {
-        this(search, reranker, TokenCounter.cl100k(), props.rerank().candidates(), props.rerank().maxPassageTokens());
+    public RetrievalPipeline(HybridSearch search, Reranker reranker, RagProperties props, ObservationRegistry observations) {
+        this(search, reranker, TokenCounter.cl100k(), props.rerank().candidates(), props.rerank().maxPassageTokens(),
+                observations);
     }
 
     RetrievalPipeline(HybridSearch search, Reranker reranker, TokenCounter tokens, int candidates, int maxPassageTokens) {
+        this(search, reranker, tokens, candidates, maxPassageTokens, ObservationRegistry.NOOP);
+    }
+
+    RetrievalPipeline(HybridSearch search, Reranker reranker, TokenCounter tokens, int candidates, int maxPassageTokens,
+            ObservationRegistry observations) {
         this.search = search;
         this.reranker = reranker;
         this.tokens = tokens;
         this.candidates = candidates;
         this.maxPassageTokens = maxPassageTokens;
+        this.observations = observations;
     }
 
     public Result retrieve(String query, int topK, Mode mode, boolean rerank, Principal principal) {
+        Map<String, String> tags = Map.of("mode", mode.name(), "rerank", Boolean.toString(rerank),
+                "topK", Integer.toString(topK));
+        return Observations.observe(observations, "rag.retrieval", tags,
+                result -> Map.of("hits", Integer.toString(result.hits().size())),
+                () -> retrieveObserved(query, topK, mode, rerank, principal));
+    }
+
+    private Result retrieveObserved(String query, int topK, Mode mode, boolean rerank, Principal principal) {
         long t0 = System.nanoTime();
         if (!rerank) {
             var outcome = search.searchWithDiagnostics(query, topK, mode, principal);
@@ -60,6 +78,14 @@ public class RetrievalPipeline {
         }
 
         long t1 = System.nanoTime();
+        List<SearchHit> out = Observations.observe(observations, "rag.rerank",
+                Map.of("candidates", Integer.toString(pool.size())),
+                reranked -> Map.of("returned", Integer.toString(reranked.size())),
+                () -> rerank(query, topK, pool));
+        return new Result(out, outcome.bestVectorSimilarity(), out.getFirst().score(), retrievalMs, ms(t1));
+    }
+
+    private List<SearchHit> rerank(String query, int topK, List<SearchHit> pool) {
         List<Double> scores = reranker.score(query, pool.stream().map(h -> tokens.truncate(h.text(), maxPassageTokens)).toList());
         List<Integer> order = RerankOrder.order(scores);
         List<SearchHit> out = new ArrayList<>(Math.min(topK, pool.size()));
@@ -71,9 +97,9 @@ public class RetrievalPipeline {
             s.put("rerankScore", scores.get(i));
             s.put("rerankProbability", probability);
             out.add(new SearchHit(h.chunkId(), h.sectionId(), h.docId(), h.docTitle(), h.sectionPath(), h.coveredSections(),
-                    h.pages(), h.classification(), probability, s, h.text()));
+                    h.pages(), h.classification(), probability, s, h.text(), h.contentHash()));
         }
-        return new Result(out, outcome.bestVectorSimilarity(), out.getFirst().score(), retrievalMs, ms(t1));
+        return out;
     }
 
     private static long ms(long t0) {

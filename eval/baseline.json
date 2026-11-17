@@ -1,0 +1,46 @@
+{
+  "scope" : "example-bank",
+  "corpusVersion" : "9dd88979729b",
+  "chunkerVersion" : "structural-v1-400-cl100k",
+  "embeddingModel" : "ollama/nomic-embed-text",
+  "mode" : "HYBRID",
+  "topK" : 10,
+  "rerank" : false,
+  "includedItems" : 30,
+  "scoredItems" : 24,
+  "unanswerableItems" : 6,
+  "excludedItems" : 12,
+  "overall" : {
+    "recallAt5" : 1.0,
+    "mrr" : 0.8819444444444445,
+    "ndcgAt10" : 0.9026189564748881,
+    "n" : 24
+  },
+  "byCategory" : {
+    "multi-hop" : {
+      "recallAt5" : 1.0,
+      "mrr" : 1.0,
+      "ndcgAt10" : 0.885032847341471,
+      "n" : 2
+    },
+    "exact-term" : {
+      "recallAt5" : 1.0,
+      "mrr" : 0.6333333333333333,
+      "ndcgAt10" : 0.7261859507142916,
+      "n" : 5
+    },
+    "restricted" : {
+      "recallAt5" : 1.0,
+      "mrr" : 0.9285714285714286,
+      "ndcgAt10" : 0.9472756790816368,
+      "n" : 7
+    },
+    "factual" : {
+      "recallAt5" : 1.0,
+      "mrr" : 0.95,
+      "ndcgAt10" : 0.9630929753571458,
+      "n" : 10
+    }
+  },
+  "generatedAt" : "2026-11-17T03:11:26.691792107Z"
+}

@@ -113,7 +113,7 @@ docker compose exec ollama ollama pull nomic-embed-text
 set -a; . ./.env; set +a
 ./gradlew :app:bootRun --args="ingest --step=embed"   # embeddings into .cache/ (gitignored)
 ./gradlew :app:bootRun --args="ingest --step=index"   # bulk-write the chunks index
-./gradlew :app:bootRun                                # REST API on :8080
+./gradlew :app:bootRun                                # REST API on :8080; actuator on :8081
 ./gradlew :eval-runner:run --args="--base-url=http://127.0.0.1:8080"
 ```
 
@@ -129,6 +129,50 @@ Multi-turn `/v1/ask`: every response carries a `conversationId`; send it back wi
 rewrites the follow-up into a standalone query before retrieval (`rewrittenQuery` in the response). Conversations
 live in memory only: they are lost on restart, expire after 30 minutes idle, and are visible only to the caller that
 started them (any other caller gets `404`).
+
+## Operations and security
+
+| Env var | Principal | Clearance | Roles | Use |
+|---|---|---|---|---|
+| `RAG_KEY_DEV` | `dev` | restricted | – | Development and the eval runner |
+| `RAG_KEY_INTERNAL` | `carol` | internal | – | Internal-clearance tests and eval items |
+| `RAG_KEY_PUBLIC` | `bob` | public | – | Low-clearance tests and eval items |
+| `RAG_KEY_ADMIN` | `admin` | restricted | `admin` | Audit read and replay |
+
+`RAG_KEY_ADMIN` is an operations key: it can read audit records above its own clearance, so issue it at
+restricted clearance. Missing or invalid keys get `401`; an authenticated key without the role gets `403`
+problem+json.
+
+**Audit.** Every completed `/v1/ask` and `/v1/search` writes one record to `audit-<RAG_ENV_PREFIX>-v1`
+(append-only, `op_type=create`). A failed audit write returns `503` and withholds the answer. Read and replay
+use the separate `ES_AUDIT_READER_USERNAME` / `ES_AUDIT_READER_PASSWORD` user; when they are blank both
+endpoints answer `503`:
+
+- `GET /v1/audit/{answerIdOrQueryId}` — admin only.
+- `POST /v1/audit/{answerId}/replay` — admin only; verifies each recorded `contentHash` and returns `409` on a
+  missing or changed chunk, then regenerates from the recorded prompt. A pre-generation refusal is replayed
+  without a model call.
+
+**Observability.** Actuator moves to a loopback management port (`MANAGEMENT_PORT`, default `8081`):
+`/actuator/health` and `/actuator/prometheus`. The authenticated `/v1/info` returns the index and model versions
+the eval runner records. Traces go to `OTLP_ENDPOINT` (shared Jaeger at `127.0.0.1:30117` on the development
+server); `docker compose --profile observability up -d` starts a local Jaeger and Prometheus. The development
+server sets `MANAGEMENT_ADDRESS=0.0.0.0` and allows only the Docker proxy subnet to port 8081 through the host
+firewall.
+
+**CI gate.** PR CI runs the Example Bank subset (24 scored items; 6 unanswerable; 12 SPM items excluded) with
+fixture embeddings, no Ollama and no model tokens:
+
+```sh
+scripts/build-fixture.sh     # local, with Ollama; writes eval/fixtures/ (vector-only, committed)
+./gradlew :app:ciGate       # compares Recall@5 and MRR with eval/baseline.json (fails on a drop > 0.02)
+scripts/check-compose-limits.sh
+scripts/check-no-spm.sh      # no HKMA URL or PDF in tracked files
+```
+
+After an intentional retrieval change, regenerate the baseline with
+`./gradlew :app:ciGate -PciWriteBaseline=true` and commit the baseline on its own with an explanation. The
+SPM part of the corpus is evaluated locally, not in CI.
 
 ## Evaluation results
 

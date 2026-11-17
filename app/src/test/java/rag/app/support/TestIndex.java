@@ -42,4 +42,24 @@ public final class TestIndex {
                 chunk("c-p5", "spm-x", "public", "4", "incident response for disruption"),
                 chunk("c-p6", "spm-x", "public", "5", "outsourcing agreements"));
     }
+
+    /** A public, an internal and a restricted chunk; only the restricted one matches {@code query} exactly. */
+    public static List<ChunkDocument> threeLevels(String query) {
+        return List.of(
+                chunk("c-pub", "spm-x", "public", "1", "public tolerance guidance"),
+                chunk("c-int", "eb-a", "internal", "2", "internal change process"),
+                chunk("c-res", "eb-secret", "restricted", "9", query));
+    }
+
+    /** Only hidden chunks: a public caller's filtered retrieval is empty and the probe sees the hidden match. */
+    public static List<ChunkDocument> hiddenOnly(String query) {
+        return List.of(
+                chunk("c-int", "eb-a", "internal", "2", query),
+                chunk("c-res", "eb-secret", "restricted", "9", query));
+    }
+
+    /** Only a restricted chunk: an internal caller's filtered retrieval is empty. */
+    public static List<ChunkDocument> restrictedOnly(String query) {
+        return List.of(chunk("c-res", "eb-secret", "restricted", "9", query));
+    }
 }

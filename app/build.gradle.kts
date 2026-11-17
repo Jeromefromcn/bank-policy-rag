@@ -8,6 +8,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("io.micrometer:micrometer-registry-prometheus")
+    implementation("io.micrometer:micrometer-tracing-bridge-otel")
+    implementation("io.opentelemetry:opentelemetry-exporter-otlp")
     implementation("org.springframework.boot:spring-boot-starter-elasticsearch")
     // Boot 4.1.2 manages 9.4.8; match the 9.5.x server.
     implementation("co.elastic.clients:elasticsearch-java:9.5.6")
@@ -16,7 +19,10 @@ dependencies {
     implementation("com.github.f4b6a3:ulid-creator:5.2.4")
 
     testImplementation(testFixtures(project(":core")))
+    testImplementation(project(":eval-runner"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("io.micrometer:micrometer-observation-test")
+    testImplementation("io.micrometer:micrometer-tracing-test")
     testImplementation("org.testcontainers:testcontainers-elasticsearch")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
 }
@@ -31,7 +37,7 @@ springBoot {
 }
 
 tasks.named<Test>("test") {
-    useJUnitPlatform { excludeTags("local") }
+    useJUnitPlatform { excludeTags("local", "ci") }
     jvmArgs("-XX:+EnableDynamicAgentLoading")
 }
 
@@ -40,4 +46,13 @@ tasks.register<Test>("localTest") {
     testClassesDirs = sourceSets["test"].output.classesDirs
     classpath = sourceSets["test"].runtimeClasspath
     useJUnitPlatform { includeTags("local") }
+}
+
+tasks.register<Test>("ciGate") {
+    description = "Example Bank retrieval gate against eval/baseline.json."
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform { includeTags("ci") }
+    workingDir = rootDir
+    systemProperty("ci.writeBaseline", providers.gradleProperty("ciWriteBaseline").getOrElse("false"))
 }

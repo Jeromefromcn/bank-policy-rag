@@ -69,4 +69,27 @@ class CorpusLoaderTest {
         Files.delete(root.resolve("raw/AB-1.pdf"));
         assertThat(CorpusLoader.knownDocIds(root)).containsExactlyInAnyOrder("test-ab-1", "adv-x", "eb-a");
     }
+
+    @Test
+    void exampleBankScopeLoadsMarkdownOnly() throws Exception {
+        Path root = TestCorpus.create(tmp);
+        Files.delete(root.resolve("raw/AB-1.pdf"));
+        var docs = new CorpusLoader(root).load(CorpusLoader.Scope.EXAMPLE_BANK);
+        assertThat(docs).extracting(ParsedDocument::docId).containsExactlyInAnyOrder("eb-a", "adv-x");
+    }
+
+    @Test
+    void allScopeStillRequiresThePdf() throws Exception {
+        Path root = TestCorpus.create(tmp);
+        Files.delete(root.resolve("raw/AB-1.pdf"));
+        assertThatThrownBy(() -> new CorpusLoader(root).load(CorpusLoader.Scope.ALL))
+                .hasMessageContaining("missing");
+    }
+
+    @Test
+    void exampleBankKnownDocIdsExcludeTheManifest() throws Exception {
+        Path root = TestCorpus.create(tmp);
+        assertThat(CorpusLoader.knownDocIds(root, CorpusLoader.Scope.EXAMPLE_BANK))
+                .containsExactlyInAnyOrder("eb-a", "adv-x");
+    }
 }

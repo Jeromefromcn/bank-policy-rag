@@ -13,6 +13,8 @@ rag:
     num-thread: 3
     batch-size: 16
     cache-dir: .cache/embeddings
+    # CI gate only: when set, a FixtureEmbedder replaces the Ollama model (spec 05 §7.1).
+    fixture-dir: ${RAG_FIXTURE_DIR:}
     models:
       nomic:
         ollama-model: nomic-embed-text
@@ -64,6 +66,11 @@ rag:
     ttl: 30m
     max-turns: 5
     max-conversations: 1000
+  audit:
+    # Blank = audit-<env-prefix>-v1 (spec 05 §4.1).
+    index: ${RAG_AUDIT_INDEX:}
+    reader-username: ${ES_AUDIT_READER_USERNAME:}
+    reader-password: ${ES_AUDIT_READER_PASSWORD:}
 
 spring:
   application:
@@ -98,10 +105,26 @@ spring:
       base-url: ${OLLAMA_URL:http://127.0.0.1:11434}
 
 management:
+  server:
+    port: ${MANAGEMENT_PORT:8081}
+    address: ${MANAGEMENT_ADDRESS:127.0.0.1}
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: never
+  metrics:
+    distribution:
+      percentiles-histogram:
+        rag.stage.latency: true
+  tracing:
+    sampling:
+      probability: ${OTLP_SAMPLE_RATE:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTLP_ENDPOINT:http://127.0.0.1:30117/v1/traces}
   health:
     # The app's ES user has no cluster privileges, so the default indicator would report DOWN.
     elasticsearch:

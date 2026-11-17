@@ -74,6 +74,42 @@ services:
       # No authentication: loopback only.
       - "127.0.0.1:18090:8080"
 
+  # Optional local observability for people not using the shared stacks (ROADMAP §7, spec 05 §5.3).
+  # Start with: docker compose --profile observability up -d
+  # Point the app at this Jaeger with OTLP_ENDPOINT=http://127.0.0.1:4318/v1/traces and set
+  # MANAGEMENT_ADDRESS=0.0.0.0 so the Prometheus container can reach host.docker.internal:8081.
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0@sha256:836e9b69c88afbedf7683ea7162e179de63b1f981662e83f5ebb68badadc710f
+    profiles: [observability]
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    ports:
+      - "127.0.0.1:16686:16686"
+      - "127.0.0.1:4318:4318"
+
+  prometheus:
+    # v3.13.1; same digest as the shared monitoring stack.
+    image: prom/prometheus@sha256:2d61f37ba9f2185195dfad94ee500d7ac1986560bac79a77d0a6de182a5bf814
+    profiles: [observability]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    ports:
+      - "127.0.0.1:9090:9090"
+
 volumes:
   es-data:
   ollama-models:

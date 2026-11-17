@@ -43,17 +43,18 @@ Filled in before implementation; results go in this table.
 
 | Item | How | Result |
 |---|---|---|
-| Audit index name and privileges | Ask gitops for the current state of `audit-rag-v1` / `audit-rag_dev-v1`, `create_index` (replacing `auto_configure`) and the two read-only users `rag_audit_reader` / `rag_audit_reader_dev` (requests sent 2026-11-08) | Pending |
-| Index template applies to `audit-*` | Create the index with an explicit strict mapping, write one document, re-read via the reader user | Pending |
-| Audit writer privileges | The app user has `create_doc` on `audit-<prefix>-*`; confirm whether `create_index` is granted, or only `auto_configure` | Pending |
-| Micrometer / OTLP artifacts for Boot 4.1.2 | Resolve `micrometer-registry-prometheus`, `micrometer-tracing-bridge-otel`, `opentelemetry-exporter-otlp` from the Boot BOM; record exact versions in the plan | Pending |
-| OTLP/HTTP endpoint property | One live trace from the app to the shared Jaeger at `127.0.0.1:30117`; confirm the Boot property name and protocol (`http/protobuf`) | Pending |
-| Management port behaviour | `curl 127.0.0.1:8081/actuator/prometheus` without a key returns `200`; `8080/actuator/prometheus` is not reachable | Pending |
+| Audit index name and privileges | Ask gitops for the current state of `audit-rag-v1` / `audit-rag_dev-v1`, `create_index` (replacing `auto_configure`) and the two read-only users `rag_audit_reader` / `rag_audit_reader_dev` (requests sent 2026-11-08) | Partial 2026-11-17: `create_index` confirmed (the app created `audit-rag_dev-v1`); the two reader users are still pending |
+| Index template applies to `audit-*` | Create the index with an explicit strict mapping, write one document, re-read via the reader user | Partial 2026-11-17: the app created the strict mapping and 25 live `/v1/ask` records wrote successfully; re-read is blocked until the reader user exists |
+| Audit writer privileges | The app user has `create_doc` on `audit-<prefix>-*`; confirm whether `create_index` is granted, or only `auto_configure` | Confirmed 2026-11-17: `create_index` on `audit-<prefix>-*` is granted |
+| Micrometer / OTLP artifacts for Boot 4.1.2 | Resolve `micrometer-registry-prometheus`, `micrometer-tracing-bridge-otel`, `opentelemetry-exporter-otlp` from the Boot BOM; record exact versions in the plan | Resolved 2026-11-16: Micrometer 1.17.2, Micrometer Tracing 1.7.2, OpenTelemetry 1.62.0 |
+| OTLP/HTTP endpoint property | One live trace from the app to the shared Jaeger at `127.0.0.1:30117`; confirm the Boot property name and protocol (`http/protobuf`) | Partial 2026-11-17: the app exported to the endpoint without an error during the live run; arrival not confirmed |
+| Optional observability images | `docker buildx imagetools inspect`; pin the digest | Jaeger `1.62.0` multi-arch index `sha256:836e9b69…` (arm64 manifest `sha256:9da7c1ce…`); Prometheus `v3.13.1` pin `sha256:2d61f37b…` is linux/arm64 |
+| Management port behaviour | `curl 127.0.0.1:8081/actuator/prometheus` without a key returns `200`; `8080/actuator/prometheus` is not reachable | Verified in `ManagementIT` 2026-11-16: management port returns 200 for `prometheus` and `health` without a key; the API port returns 404 |
 | Proxy-subnet reachability | From a container on the `proxy` network (`172.19.0.0/16`), `curl 172.19.0.1:8081/actuator/prometheus` returns `200` after the gitops firewall rule; a connection from outside that subnet is rejected | Pending |
 | Prometheus scrape job | Gitops adds target `172.19.0.1:8081`; a `rag_requests_total` sample appears in Prometheus | Pending |
-| arm64 GitHub runner | `ubuntu-24.04-arm` is available to the public repo; Docker works; the pinned `elasticsearch:9.5.5` image starts | Pending |
-| Testcontainers resource limits | The existing `EsTestContainer` limits are unchanged and `scripts/check-compose-limits.sh` still passes | Pending |
-| Secrets for the manual live eval | `DEEPSEEK_API_KEY` is available to the workflow (or the run is local); PR CI needs none | Pending |
+| arm64 GitHub runner | `ubuntu-24.04-arm` is available to the public repo; Docker works; the pinned `elasticsearch:9.5.5` image starts | Confirmed 2026-11-17: run `44110310962` passed all steps in 4m31s on `ubuntu-24.04-arm`, including Testcontainers ES |
+| Testcontainers resource limits | The existing `EsTestContainer` limits are unchanged and `scripts/check-compose-limits.sh` still passes | Verified 2026-11-17: `check-compose-limits.sh` reports `ok: 5 services limited`; `EsTestContainer` still sets 1.5 GB / 2 CPUs |
+| Secrets for the manual live eval | `DEEPSEEK_API_KEY` is available to the workflow (or the run is local); PR CI needs none | Local 2026-11-17: the live injection run used the shell `DEEPSEEK_API_KEY`; no GitHub secret is needed for PR CI |
 
 The audit index name in this spec supersedes `rag-audit` in ROADMAP §4.3/§5 and in spec 00 §5; the
 gitops answer fixes the final spelling. Until it is granted, the implementation uses
@@ -198,7 +199,7 @@ One document per completed response. Fields, all from ROADMAP §4.3 plus the add
 | `question` | The original text |
 | `rewrittenQuery` | Non-null only when Phase 4 rewrote a follow-up |
 | `retrieval` | `{mode, topK, rerank, bestVectorSimilarity, bestRerankProbability, hits:[{chunkId, contentHash, rank, score, docId, sectionPath, classification}]}` |
-| `promptTemplateVersion` | e.g. `answer.v2`; null for `/search` |
+| `promptTemplateVersion` | e.g. `answer.v3`; null for `/search` |
 | `renderedPrompt` | The **full final prompt** sent to the model; null for `/search` |
 | `model` | `{provider, id, temperature, maxTokens}`; null for `/search` |
 | `answer`, `citations`, `status`, `refusalReason` | As returned; `citations` keeps the quote; `status = OK` for `/search` |
@@ -275,7 +276,7 @@ an operations role.)
 { "answerId": "a_01J...", "replayOf": "a_01J...",
   "original": { "status": "...", "answer": "...", "citations": [], "usage": {}, "latencyMs": {} },
   "replay":   { "status": "...", "answer": "...", "citations": [], "refusalReason": null, "usage": {} },
-  "promptTemplateVersion": "answer.v2", "modelCall": true,
+  "promptTemplateVersion": "answer.v3", "modelCall": true,
   "model": { "recorded": "...", "current": "...", "matches": true },
   "contentHashes": { "checked": 5, "matched": 5 },
   "latencyMs": { "generation": 900, "audit": 12 } }
@@ -550,7 +551,7 @@ New or changed properties (defaults in `application.yaml`, secrets in `.env`):
 | `management.tracing.sampling.probability` | `1.0` | Dev sampling; property-driven |
 | `management.otlp.tracing.endpoint` | `http://127.0.0.1:30117/v1/traces` | Shared Jaeger |
 | `management.tracing.enabled` | `true` (false in test) | CI exports nothing |
-| `rag.fixture.dir` | empty | Fixture directory for `FixtureEmbedder` in the gate test |
+| `rag.embedding.fixture-dir` | empty | Fixture directory for `FixtureEmbedder` in the gate test |
 
 `.env.example` gains `RAG_KEY_PUBLIC`, `RAG_KEY_INTERNAL`, `RAG_KEY_ADMIN`, `ES_AUDIT_READER_USERNAME`,
 `ES_AUDIT_READER_PASSWORD`, `MANAGEMENT_PORT`, `MANAGEMENT_ADDRESS`, `OTLP_ENDPOINT`,
