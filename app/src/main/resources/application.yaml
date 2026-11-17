@@ -13,6 +13,8 @@ rag:
     num-thread: 3
     batch-size: 16
     cache-dir: .cache/embeddings
+    # CI gate only: when set, a FixtureEmbedder replaces the Ollama model (spec 05 §7.1).
+    fixture-dir: ${RAG_FIXTURE_DIR:}
     models:
       nomic:
         ollama-model: nomic-embed-text

@@ -42,9 +42,11 @@ public record RagProperties(
     /**
      * @param model key into {@code models}; selects the embedding model for this process
      */
-    public record Embedding(String model, int numThread, int batchSize, String cacheDir, Map<String, ModelSpec> models) {
+    public record Embedding(String model, int numThread, int batchSize, String cacheDir, Map<String, ModelSpec> models,
+            String fixtureDir) {
         public Embedding {
             models = models == null ? Map.of() : Map.copyOf(models);
+            fixtureDir = fixtureDir == null ? "" : fixtureDir;
         }
     }
 

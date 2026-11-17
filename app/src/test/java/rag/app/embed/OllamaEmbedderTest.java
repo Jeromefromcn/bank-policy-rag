@@ -36,7 +36,7 @@ class OllamaEmbedderTest {
 
     static RagProperties.Embedding config(String selected) {
         return new RagProperties.Embedding(selected, 3, 16, ".cache/embeddings",
-                Map.of("nomic", NOMIC, "bge-small", BGE_SMALL, "bge-m3", BGE_M3));
+                Map.of("nomic", NOMIC, "bge-small", BGE_SMALL, "bge-m3", BGE_M3), "");
     }
 
     private final OllamaEmbedder embedder = new OllamaEmbedder(model, config("nomic"));

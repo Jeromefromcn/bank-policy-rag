@@ -34,7 +34,7 @@ public class OllamaEmbedder implements Embedder {
 
     @Override
     public float[] embedQuery(String query) {
-        return call(List.of(spec.queryPrefix() + query)).getFirst();
+        return call(List.of(EmbeddingPrefixes.query(spec, query))).getFirst();
     }
 
     @Override
@@ -42,7 +42,7 @@ public class OllamaEmbedder implements Embedder {
         List<float[]> out = new ArrayList<>(texts.size());
         for (int i = 0; i < texts.size(); i += cfg.batchSize()) {
             List<String> batch = texts.subList(i, Math.min(texts.size(), i + cfg.batchSize()))
-                    .stream().map(t -> spec.documentPrefix() + t).toList();
+                    .stream().map(t -> EmbeddingPrefixes.document(spec, t)).toList();
             out.addAll(call(batch));
         }
         return out;

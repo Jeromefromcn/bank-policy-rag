@@ -11,7 +11,7 @@ public class RagApplication {
 
     public static void main(String[] args) {
         var app = new SpringApplication(RagApplication.class);
-        if (args.length > 0 && args[0].equals("ingest")) {
+        if (args.length > 0 && (args[0].equals("ingest") || args[0].equals("fixture"))) {
             // Ingest is a CLI run: no web server, exit when done.
             app.setWebApplicationType(WebApplicationType.NONE);
             // Ingest never generates text, so it must not need a chat model or its API key.
