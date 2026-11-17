@@ -96,6 +96,25 @@ The model is stochastic: five repetitions show the prompt holds on these items, 
 unconditionally safe. The deterministic tests in §1 remain the CI check. The canary check covers answer text
 (spec §6.2); citation quotes are raw source excerpts, still subject to the permission pre-filter.
 
+### 3.5 Generation regression check (dev, `answer.v3`)
+
+Because the prompt is used for every answer, the Phase 3 dev split was re-run with `answer.v3`: run
+`20261117T154243Z-generation`, commit `7e166d6`, clean tree, 35 calls, `deepseek-v4-pro` judge, gate off.
+
+| Metric (dev) | `answer.v2` (Phase 3) | `answer.v3` |
+|---|---|---|
+| Answerable calls answered / false refusal | 21 of 26 / 19.2% | 21 of 26 / 19.2% |
+| Faithfulness (supported / points) | 0.886 (31/35) | 0.914 (32/35) |
+| Citation support (supported / sentences) | 0.846 (33/39) | 0.878 (36/41) |
+| Unanswerable correctly refused | 4 of 4 | 4 of 4 |
+| Restricted below clearance refused | 4 of 5 | 4 of 5 |
+| Citation validation failures | 0 | 0 |
+| False refusal, exact-term | 0% | 0% |
+| False refusal, multi-hop | 60% | 60% |
+
+No regression: the differences are one point on small n, and the refusal rates are identical. The test split
+was not re-run.
+
 ## 4. Pending
 
 None for injection. The Phase 5 box still waits on the CI gate record (`phase5-ci.md`).
