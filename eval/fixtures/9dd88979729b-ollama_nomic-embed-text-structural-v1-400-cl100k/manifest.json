@@ -1,0 +1,11 @@
+{
+  "corpusVersion" : "9dd88979729b",
+  "embeddingModel" : "ollama/nomic-embed-text",
+  "chunkerVersion" : "structural-v1-400-cl100k",
+  "chunks" : 46,
+  "questions" : 24,
+  "files" : {
+    "chunks.jsonl" : "72d0e00784b721f70d7479bbff6308869e4e42dcd40caa92306942571569faf2",
+    "questions.jsonl" : "6f28202da8ee2e4991c5d2186a53bb7a7e0bb873ae62dbf9d24eacabc7d34dfb"
+  }
+}
