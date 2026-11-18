@@ -1,7 +1,9 @@
 package rag.app.mcp;
 
+import io.micrometer.observation.ObservationRegistry;
 import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -11,6 +13,7 @@ import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.stereotype.Component;
 import rag.app.ask.AskService;
+import rag.app.metrics.Observations;
 import rag.app.search.Mode;
 import rag.app.search.SearchRequest;
 import rag.app.search.SearchService;
@@ -32,11 +35,14 @@ public class McpTools {
     private final SearchService search;
     private final AskService ask;
     private final McpSectionService sections;
+    private final ObservationRegistry observations;
 
-    public McpTools(SearchService search, AskService ask, McpSectionService sections) {
+    public McpTools(SearchService search, AskService ask, McpSectionService sections,
+            ObservationRegistry observations) {
         this.search = search;
         this.ask = ask;
         this.sections = sections;
+        this.observations = observations;
     }
 
     @McpTool(name = "search_docs", title = "Search policy documents",
@@ -123,6 +129,7 @@ public class McpTools {
     }
 
     private <T> T tool(String name, Function<T, String> status, Supplier<T> body) {
-        return body.get();   // Task 7 replaces this with an observation
+        return Observations.observe(observations, "rag.mcp.tool", Map.of("tool", name),
+                result -> Map.of("status", status.apply(result)), body);
     }
 }
