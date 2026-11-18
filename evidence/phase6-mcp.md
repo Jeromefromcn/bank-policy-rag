@@ -133,13 +133,15 @@ MCP records written during the whole live session (audit index `audit-rag_dev-v1
 | `mcp:get_section` | 5 |
 
 Server-side latency from those records (milliseconds): `search_docs` retrieval 13–102; `answer_question`
-retrieval 94–126 plus generation 1,220–1,686; `get_section` audit write 14–28. Refusals that come from the model
-still pay the generation time; refusals from an empty filtered retrieval do not call it.
+retrieval 94–126 plus generation 1,220–1,686; `get_section` lookup plus alias metadata 14–28 as recorded in
+`latencyMs.audit` (that field does not separately time the audit write for `get_section`). Refusals that come from
+the model still pay the generation time; refusals from an empty filtered retrieval do not call it.
 
 The deterministic suites (`McpProtocolIT`, `McpToolIT`, `McpPermissionIT`, `McpAuditIT`, `McpReplayIT`,
 `McpObservationIT`) cover the same rules without network access: principal required, hidden-vs-absent parity for
-answers, search and sections, one record per completed call, fail-closed audit, `mcp:answer_question` replay, and
-the `rag.mcp.tool` span with `tool` / `status` tags.
+answers, search and sections, REST-vs-MCP section parity, the exact input schemas and their `required` lists, one
+record per completed call, fail-closed audit, `mcp:answer_question` replay, and the `rag.mcp.tool` span with
+`tool` / `status` tags including `error`, `refused` and `not_found`.
 
 ## 5. Deviations and costs
 
@@ -169,6 +171,6 @@ the `rag.mcp.tool` span with `tool` / `status` tags.
 | `./gradlew :core:test :eval-runner:test --rerun-tasks` | `BUILD SUCCESSFUL` in 21 s, 10 tasks executed |
 | `scripts/check-compose-limits.sh` | `ok: 5 services limited` |
 
-Test XML across the three modules: **500 tests in 85 classes, 0 failures, 0 errors, 0 skipped**. The MCP classes
-contribute 31: `McpToolContextTest` 2, `McpProtocolIT` 6, `McpToolIT` 10, `McpPermissionIT` 3, `McpAuditIT` 4,
-`McpReplayIT` 4, `McpObservationIT` 2.
+Test XML across the three modules: **506 tests in 85 classes, 0 failures, 0 errors, 0 skipped**. The MCP classes
+contribute 37: `McpToolContextTest` 2, `McpProtocolIT` 6, `McpToolIT` 10, `McpPermissionIT` 4, `McpAuditIT` 4,
+`McpReplayIT` 4, `McpObservationIT` 6.
