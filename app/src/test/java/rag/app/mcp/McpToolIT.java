@@ -8,6 +8,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch.core.search.Hit;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +17,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import rag.app.audit.AuditIndexAdmin;
+import rag.app.audit.AuditRecord;
 import rag.app.conversation.ConversationStore;
 import rag.app.embed.Embedder;
 import rag.app.embed.EmbeddingUnavailableException;
@@ -42,6 +46,7 @@ class McpToolIT extends IntegrationTest {
     @Autowired SectionWriter sections;
     @Autowired StubChatModel stub;
     @Autowired ElasticsearchClient client;
+    @Autowired AuditIndexAdmin auditAdmin;
     @MockitoSpyBean ConversationStore conversations;
     @MockitoSpyBean Embedder embedder;
 
@@ -107,9 +112,11 @@ class McpToolIT extends IntegrationTest {
     }
 
     @Test
-    void answerQuestionDoesNotCreateAConversation() {
+    void answerQuestionDoesNotTouchAConversation() {
         McpHttp.callTool(port, KEY, "answer_question", Map.of("question", QUERY));
         verify(conversations, never()).create(any());
+        verify(conversations, never()).history(any(), any());
+        verify(conversations, never()).append(any(), any(), any());
     }
 
     @Test
@@ -163,5 +170,24 @@ class McpToolIT extends IntegrationTest {
         assertThat(McpHttp.isError(r)).isTrue();
         assertThat(McpHttp.message(r)).isEqualTo("The service could not complete the request.")
                 .doesNotContain("secret detail");
+    }
+
+    @Test
+    void backendFailureWritesNoAuditRecord() throws Exception {
+        try {
+            client.indices().delete(d -> d.index("t_mcp_tool-audit-v1"));
+        } catch (IOException | co.elastic.clients.elasticsearch._types.ElasticsearchException ignored) {
+            // first run, or already gone
+        }
+        auditAdmin.ensure();
+        doThrow(new EmbeddingUnavailableException("secret detail", null))
+                .when(embedder).embedQuery(anyString());
+        var r = McpHttp.callTool(port, KEY, "search_docs", Map.of("query", QUERY, "mode", "VECTOR"));
+        assertThat(McpHttp.isError(r)).isTrue();
+        client.indices().refresh(x -> x.index("t_mcp_tool-audit-v1"));
+        var records = client.search(s -> s.index("t_mcp_tool-audit-v1")
+                        .query(q -> q.term(t -> t.field("endpoint").value("mcp:search_docs"))), AuditRecord.class)
+                .hits().hits().stream().map(Hit::source).toList();
+        assertThat(records).isEmpty();
     }
 }
