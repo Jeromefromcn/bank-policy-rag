@@ -16,6 +16,7 @@ dependencies {
     implementation("co.elastic.clients:elasticsearch-java:9.5.6")
     implementation("org.springframework.ai:spring-ai-starter-model-deepseek")
     implementation("org.springframework.ai:spring-ai-starter-model-ollama")
+    implementation("org.springframework.ai:spring-ai-starter-mcp-server-webmvc")
     implementation("com.github.f4b6a3:ulid-creator:5.2.4")
 
     testImplementation(testFixtures(project(":core")))

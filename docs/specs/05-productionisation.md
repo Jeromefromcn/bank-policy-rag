@@ -224,7 +224,8 @@ write fails (permission, timeout, cluster error):
 
 Only completed `200` responses are audited. Requests rejected before completion (`400`, `401`, `403`,
 generation/rerank/embedding `503`) produce no record; replay is defined for completed `/v1/ask`
-records.
+records. (Phase 6, 2026-11-18: the same rule applies to MCP tool calls, and replay extends to completed
+`mcp:answer_question` records; see spec 06 §4.5.)
 
 **Conversation ordering.** On `/v1/ask` the audit write completes before the conversation turn is
 appended. A failed audit write therefore returns `503` and leaves no turn in the conversation, so a
@@ -252,8 +253,9 @@ an operations role.)
 
 **`POST /v1/audit/{recordId}/replay`** — `admin` only.
 
-1. Load the record. If it is missing → `404`; if `endpoint != ask` → `409`
-   `urn:rag:problem:replay-unsupported` (a search record has no prompt or answer to replay).
+1. Load the record. If it is missing → `404`; if `endpoint` is neither `ask` nor `mcp:answer_question` → `409`
+   `urn:rag:problem:replay-unsupported` (a search or section record has no prompt and answer to replay). The
+   MCP value was added in Phase 6; see spec 06 §4.5.
 2. Read every recorded hit's current chunk by `chunkId` from the chunks index, using the **application
    client** (the reader user is granted read only on `audit-*`, not on the chunks index). If any chunk
    is missing or its `contentHash` differs from the recorded value → `409`
@@ -286,7 +288,8 @@ an operations role.)
 Replay is not itself audited: it is an admin-only read of an existing record, it makes one model call,
 and writing a second record would add recursion and a second failure point. The replay is logged with
 its trace id and the original answer id. (This is a deliberate reading of ROADMAP §5 "all fields in
-§4.3 persisted"; the hard rule is that any `/v1/ask` record can be replayed.)
+§4.3 persisted"; the hard rule is that any `/v1/ask` record can be replayed. Phase 6 extends the same rule to
+`mcp:answer_question`, which carries the same fields.)
 
 The recorded hits are the only source texts used; replay does not retrieve again, so it cannot compare
 retrieval quality. That is stated in the response and the evidence.
