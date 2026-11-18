@@ -2,9 +2,12 @@ package rag.app.mcp;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,6 +16,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import rag.app.conversation.ConversationStore;
+import rag.app.embed.Embedder;
+import rag.app.embed.EmbeddingUnavailableException;
 import rag.app.es.ChunkIndexAdmin;
 import rag.app.es.ChunkWriter;
 import rag.app.es.SectionDocument;
@@ -36,7 +41,9 @@ class McpToolIT extends IntegrationTest {
     @Autowired ChunkWriter writer;
     @Autowired SectionWriter sections;
     @Autowired StubChatModel stub;
+    @Autowired ElasticsearchClient client;
     @MockitoSpyBean ConversationStore conversations;
+    @MockitoSpyBean Embedder embedder;
 
     @BeforeEach
     void setUp() {
@@ -134,5 +141,27 @@ class McpToolIT extends IntegrationTest {
         assertThat(McpHttp.isError(hidden)).isTrue();
         assertThat(McpHttp.isError(unknown)).isTrue();
         assertThat(McpHttp.message(hidden)).isEqualTo(McpHttp.message(unknown));
+    }
+
+    @Test
+    void auditFailureReturnsErrorAndNoContent() throws Exception {
+        client.indices().close(c -> c.index("t_mcp_tool-audit-v1"));
+        try {
+            var r = McpHttp.callTool(port, KEY, "search_docs", Map.of("query", QUERY));
+            assertThat(McpHttp.isError(r)).isTrue();
+            assertThat(McpHttp.message(r)).contains("audit record could not be written");
+        } finally {
+            client.indices().open(o -> o.index("t_mcp_tool-audit-v1"));
+        }
+    }
+
+    @Test
+    void backendFailureIsGeneric() {
+        doThrow(new EmbeddingUnavailableException("secret detail", null))
+                .when(embedder).embedQuery(anyString());
+        var r = McpHttp.callTool(port, KEY, "search_docs", Map.of("query", QUERY, "mode", "VECTOR"));
+        assertThat(McpHttp.isError(r)).isTrue();
+        assertThat(McpHttp.message(r)).isEqualTo("The service could not complete the request.")
+                .doesNotContain("secret detail");
     }
 }
