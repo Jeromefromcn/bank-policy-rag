@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +37,8 @@ import rag.core.cite.CitationValidator;
 public class ReplayService {
 
     static final int QUOTE_CHARS = 300;
+    /** Records that carry a prompt and answer; MCP answers join REST answers since Phase 6 (spec 06 §4.5). */
+    private static final Set<String> REPLAYABLE = Set.of("ask", "mcp:answer_question");
     private static final Logger LOG = LoggerFactory.getLogger(ReplayService.class);
 
     public record ReplayOutcome(String status, String answer, List<AuditRecord.Citation> citations,
@@ -61,9 +64,9 @@ public class ReplayService {
     }
 
     public ReplayResult replay(AuditRecord record) {
-        if (!"ask".equals(record.endpoint())) {
+        if (!REPLAYABLE.contains(record.endpoint())) {
             throw new ApiException(HttpStatus.CONFLICT, ProblemTypes.REPLAY_UNSUPPORTED,
-                    "only /v1/ask records can be replayed");
+                    "only answer records can be replayed");
         }
         List<AuditRecord.Hit> recorded = record.retrieval() == null ? List.of() : record.retrieval().hits();
         Map<String, ChunkDocument> current = fetch(recorded);
