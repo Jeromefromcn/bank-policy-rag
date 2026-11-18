@@ -2,6 +2,7 @@ package rag.app.mcp;
 
 import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.json.jackson3.JacksonMcpJsonMapper;
+import java.util.Map;
 import org.springframework.ai.mcp.server.common.autoconfigure.properties.McpServerStreamableHttpProperties;
 import org.springframework.ai.mcp.server.webmvc.transport.WebMvcStatelessServerTransport;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -33,7 +34,7 @@ public class McpServerConfig {
                 .contextExtractor(request -> {
                     var authentication = SecurityContextHolder.getContext().getAuthentication();
                     if (authentication != null && authentication.getPrincipal() instanceof Principal principal) {
-                        return McpTransportContext.create(java.util.Map.of(McpToolContext.PRINCIPAL, principal));
+                        return McpTransportContext.create(Map.of(McpToolContext.PRINCIPAL, principal));
                     }
                     return McpTransportContext.EMPTY;
                 })

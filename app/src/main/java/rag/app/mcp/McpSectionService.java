@@ -2,6 +2,7 @@ package rag.app.mcp;
 
 import com.github.f4b6a3.ulid.UlidCreator;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -48,7 +49,7 @@ public class McpSectionService {
                 .map(ChunkIndexAdmin.AliasInfo::meta).orElse(Map.of());
         var record = new AuditRecord(null, "s_" + UlidCreator.getMonotonicUlid(), Instant.now().toString(),
                 audit.traceId(), principal.name(), principal.clearance().wire(), ENDPOINT,
-                sectionId, null, null, null, null, null, null, java.util.List.of(),
+                sectionId, null, null, null, null, null, null, List.of(),
                 found.isPresent() ? "OK" : "NOT_FOUND", null, null, null,
                 new AuditRecord.Latency(0, 0, 0, 0, ms(t0)),
                 meta.get("corpusVersion"), meta.get("chunkerVersion"), meta.get("embeddingModel"));
