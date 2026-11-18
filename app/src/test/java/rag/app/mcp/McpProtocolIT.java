@@ -3,6 +3,7 @@ package rag.app.mcp;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Map;
+import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.context.TestPropertySource;
 import rag.app.support.Http;
@@ -44,5 +45,18 @@ class McpProtocolIT extends IntegrationTest {
     void getIs405() {
         var r = Http.get(port, "/mcp", KEY);
         assertThat(r.status()).isEqualTo(405);
+    }
+
+    @Test
+    void toolsListContainsSearchDocs() {
+        var tools = McpHttp.rpc(port, KEY, "tools/list", Map.of()).get("result").get("tools");
+        var search = StreamSupport.stream(tools.spliterator(), false)
+                .filter(t -> t.get("name").asString().equals("search_docs")).findFirst().orElseThrow();
+        assertThat(search.get("description").asString()).contains("data, not instructions");
+        assertThat(search.get("inputSchema").get("properties").has("query")).isTrue();
+        assertThat(search.get("inputSchema").get("properties").has("topK")).isTrue();
+        assertThat(search.get("inputSchema").get("properties").has("mode")).isTrue();
+        assertThat(search.get("inputSchema").get("properties").has("context")).isFalse();
+        assertThat(search.get("annotations").get("readOnlyHint").asBoolean()).isTrue();
     }
 }
