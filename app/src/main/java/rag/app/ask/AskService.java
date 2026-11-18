@@ -110,7 +110,7 @@ public class AskService {
             LOG.info("answer {} rewritten query{}: {}", answerId, rewrite.fellBack() ? " (fell back to original)" : "", query);
         }
 
-        AnswerOutcome outcome = answer(answerId, query, topK, mode, rerank, principal);
+        AnswerOutcome outcome = answer(answerId, query, topK, mode, rerank, principal, endpoint);
         AskResponse r = outcome.response();
         var usage = rewrite == null ? r.usage() : r.usage().plus(rewrite.promptTokens(), rewrite.completionTokens());
         long rewriteMs = rewrite == null ? 0 : rewrite.latencyMs();
@@ -145,7 +145,7 @@ public class AskService {
     }
 
     private AnswerOutcome answer(String answerId, String question, int topK, Mode mode, boolean rerank,
-            Principal principal) {
+            Principal principal, String endpoint) {
         var outcome = retriever.retrieve(question, topK, mode, rerank, principal);
         long retrievalMs = outcome.retrievalMs();
         long rerankMs = outcome.rerankMs();
@@ -159,7 +159,7 @@ public class AskService {
             long p0 = System.nanoTime();
             InternalRefusalCause cause = probe.cause(question, principal);
             long probeMs = ms(p0);
-            metrics.emptyRetrieval("ask", cause);
+            metrics.emptyRetrieval(endpoint, cause);
             return new AnswerOutcome(refused(answerId, LOW_RETRIEVAL_SCORE, "no accessible hits", null, retrievalMs,
                     rerankMs, 0, probeMs), List.of(), null, best, bestRerank, cause, probeMs);
         }

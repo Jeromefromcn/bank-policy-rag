@@ -10,6 +10,7 @@ import rag.app.RagProperties;
 import rag.app.audit.AuditRecord;
 import rag.app.audit.AuditService;
 import rag.app.es.ChunkIndexAdmin;
+import rag.app.metrics.RequestMetrics;
 import rag.app.sections.SectionLookup;
 import rag.app.sections.SectionResponse;
 import rag.app.security.Principal;
@@ -23,16 +24,21 @@ import rag.app.security.Principal;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class McpSectionService {
 
+    static final String ENDPOINT = "mcp:get_section";
+
     private final SectionLookup lookup;
     private final AuditService audit;
     private final ChunkIndexAdmin indexAdmin;
     private final RagProperties props;
+    private final RequestMetrics metrics;
 
-    public McpSectionService(SectionLookup lookup, AuditService audit, ChunkIndexAdmin indexAdmin, RagProperties props) {
+    public McpSectionService(SectionLookup lookup, AuditService audit, ChunkIndexAdmin indexAdmin, RagProperties props,
+            RequestMetrics metrics) {
         this.lookup = lookup;
         this.audit = audit;
         this.indexAdmin = indexAdmin;
         this.props = props;
+        this.metrics = metrics;
     }
 
     public Optional<SectionResponse> find(String sectionId, Principal principal) {
@@ -41,12 +47,18 @@ public class McpSectionService {
         var meta = indexAdmin.aliasInfo(props.retrieval().chunksTarget(props.envPrefix()))
                 .map(ChunkIndexAdmin.AliasInfo::meta).orElse(Map.of());
         var record = new AuditRecord(null, "s_" + UlidCreator.getMonotonicUlid(), Instant.now().toString(),
-                audit.traceId(), principal.name(), principal.clearance().wire(), "mcp:get_section",
+                audit.traceId(), principal.name(), principal.clearance().wire(), ENDPOINT,
                 sectionId, null, null, null, null, null, null, java.util.List.of(),
                 found.isPresent() ? "OK" : "NOT_FOUND", null, null, null,
                 new AuditRecord.Latency(0, 0, 0, 0, ms(t0)),
                 meta.get("corpusVersion"), meta.get("chunkerVersion"), meta.get("embeddingModel"));
-        audit.write(record);
+        try {
+            audit.write(record);
+        } catch (RuntimeException e) {
+            metrics.request(ENDPOINT, "error");
+            throw e;
+        }
+        metrics.request(ENDPOINT, found.isPresent() ? "ok" : "not_found");
         return found;
     }
 

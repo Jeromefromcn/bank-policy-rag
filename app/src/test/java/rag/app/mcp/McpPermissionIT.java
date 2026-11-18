@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
 import rag.app.es.ChunkIndexAdmin;
 import rag.app.es.ChunkWriter;
+import rag.app.es.SectionDocument;
+import rag.app.es.SectionWriter;
 import rag.app.support.Http;
 import rag.app.support.IntegrationTest;
 import rag.app.support.McpHttp;
@@ -28,15 +30,28 @@ import tools.jackson.databind.json.JsonMapper;
 class McpPermissionIT extends IntegrationTest {
 
     static final String QUERY = "tolerance for disruption";
+    static final String SECTIONS_INDEX = "t_mcp_perm-sections-struct400-v1";
     static final JsonMapper JSON = JsonMapper.builder().build();
 
     @Autowired ChunkIndexAdmin admin;
     @Autowired ChunkWriter writer;
+    @Autowired SectionWriter sections;
     @Autowired StubChatModel stub;
 
     @BeforeEach
     void setUp() {
         stub.reset();
+        TestIndex.rebuild(admin, writer, "t_mcp_perm", TestIndex.hiddenOnly(QUERY));
+        if (!admin.exists(SECTIONS_INDEX)) {
+            admin.createSections(SECTIONS_INDEX, Map.of("corpusVersion", "abcdef123456",
+                    "chunkerVersion", "structural-v1-400-cl100k"));
+            sections.bulkIndex(SECTIONS_INDEX, List.of(
+                    new SectionDocument("sec-public", "spm-x", "Title spm-x", "1", "regulatory", List.of("1"),
+                            List.of(), "public", "public section text", "abcdef123456"),
+                    new SectionDocument("sec-restricted", "eb-secret", "Title eb-secret", "1", "internal", List.of("9"),
+                            List.of(), "restricted", "restricted section text", "abcdef123456")));
+            admin.pointAlias("t_mcp_perm-sections", SECTIONS_INDEX);
+        }
     }
 
     @Test
@@ -79,6 +94,21 @@ class McpPermissionIT extends IntegrationTest {
         assertThat(hidden.has("refusalReason")).isEqualTo(absent.has("refusalReason"));
         assertThat(hidden.get("citations").size()).isZero();
         assertThat(absent.get("citations").size()).isZero();
+    }
+
+    @Test
+    void sectionParityForEveryClearance() {
+        for (String key : List.of(KEY, INTERNAL_KEY, PUBLIC_KEY)) {
+            for (String id : List.of("sec-public", "sec-restricted", "no-such-section")) {
+                var rest = Http.get(port, "/v1/sections/" + id, key);
+                var mcp = McpHttp.callTool(port, key, "get_section", Map.of("sectionId", id));
+                assertThat(rest.status() == 200).as(key + " " + id).isEqualTo(!McpHttp.isError(mcp));
+                if (rest.status() == 200) {
+                    assertThat(McpHttp.text(mcp).get("content").asString())
+                            .isEqualTo(JSON.readTree(rest.body()).get("content").asString());
+                }
+            }
+        }
     }
 
     static List<String> docIds(JsonNode hits) {

@@ -4,7 +4,6 @@ import io.micrometer.observation.ObservationRegistry;
 import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,20 +54,21 @@ public class McpTools {
             @McpToolParam(required = false, description = "Number of hits, 1-50; default 5") Integer topK,
             @McpToolParam(required = false, description = "VECTOR, BM25 or HYBRID; default HYBRID") String mode,
             McpTransportContext context) {
-        if (query == null || query.isBlank()) {
-            return error("query must not be blank");
-        }
-        try {
-            var options = SearchRequest.validateRetrievalOptions(topK, mode, false);
-            var response = tool("search_docs", () -> search.search(query, options,
-                    McpToolContext.require(context), "mcp:search_docs"));
-            return SearchDocsResult.from(query, response.hits());
-        } catch (ApiException e) {
-            return error(e.getMessage());
-        } catch (RuntimeException e) {
-            LOG.warn("search_docs failed", e);
-            return error(GENERIC_ERROR);
-        }
+        return call("search_docs", () -> {
+            if (query == null || query.isBlank()) {
+                return errorOutcome("query must not be blank");
+            }
+            try {
+                var options = SearchRequest.validateRetrievalOptions(topK, mode, false);
+                var response = search.search(query, options, McpToolContext.require(context), "mcp:search_docs");
+                return new Outcome(SearchDocsResult.from(query, response.hits()), "ok");
+            } catch (ApiException e) {
+                return errorOutcome(e.getMessage());
+            } catch (RuntimeException e) {
+                LOG.warn("search_docs failed", e);
+                return errorOutcome(GENERIC_ERROR);
+            }
+        });
     }
 
     @McpTool(name = "answer_question", title = "Answer a policy question",
@@ -79,22 +79,23 @@ public class McpTools {
                     destructiveHint = false, idempotentHint = true, openWorldHint = false))
     public Object answerQuestion(@McpToolParam(description = "Question to answer") String question,
             McpTransportContext context) {
-        if (question == null || question.isBlank()) {
-            return error("question must not be blank");
-        }
-        try {
-            var principal = McpToolContext.require(context);
-            var result = tool("answer_question",
-                    r -> r.response().status().equals("ANSWERED") ? "ok" : "refused",
-                    () -> ask.askDetailed(question, 5, Mode.HYBRID, false, null, principal,
-                            "mcp:answer_question", false));
-            return AnswerQuestionResult.from(result);
-        } catch (ApiException e) {
-            return error(e.getMessage());
-        } catch (RuntimeException e) {
-            LOG.warn("answer_question failed", e);
-            return error(GENERIC_ERROR);
-        }
+        return call("answer_question", () -> {
+            if (question == null || question.isBlank()) {
+                return errorOutcome("question must not be blank");
+            }
+            try {
+                var principal = McpToolContext.require(context);
+                var result = ask.askDetailed(question, 5, Mode.HYBRID, false, null, principal,
+                        "mcp:answer_question", false);
+                return new Outcome(AnswerQuestionResult.from(result),
+                        result.response().status().equals("ANSWERED") ? "ok" : "refused");
+            } catch (ApiException e) {
+                return errorOutcome(e.getMessage());
+            } catch (RuntimeException e) {
+                LOG.warn("answer_question failed", e);
+                return errorOutcome(GENERIC_ERROR);
+            }
+        });
     }
 
     @McpTool(name = "get_section", title = "Get a policy section",
@@ -104,32 +105,37 @@ public class McpTools {
                     destructiveHint = false, idempotentHint = true, openWorldHint = false))
     public Object getSection(@McpToolParam(description = "Section id from a search hit or citation") String sectionId,
             McpTransportContext context) {
-        if (sectionId == null || sectionId.isBlank()) {
-            return error("sectionId must not be blank");
-        }
-        try {
-            var principal = McpToolContext.require(context);
-            var found = tool("get_section", r -> r.isPresent() ? "ok" : "not_found",
-                    () -> sections.find(sectionId, principal));
-            return found.<Object>map(s -> s).orElseGet(() -> error("No such resource"));
-        } catch (ApiException e) {
-            return error(e.getMessage());
-        } catch (RuntimeException e) {
-            LOG.warn("get_section failed", e);
-            return error(GENERIC_ERROR);
-        }
+        return call("get_section", () -> {
+            if (sectionId == null || sectionId.isBlank()) {
+                return errorOutcome("sectionId must not be blank");
+            }
+            try {
+                var principal = McpToolContext.require(context);
+                var found = sections.find(sectionId, principal);
+                return found.<Outcome>map(s -> new Outcome(s, "ok"))
+                        .orElseGet(() -> new Outcome(error("No such resource"), "not_found"));
+            } catch (ApiException e) {
+                return errorOutcome(e.getMessage());
+            } catch (RuntimeException e) {
+                LOG.warn("get_section failed", e);
+                return errorOutcome(GENERIC_ERROR);
+            }
+        });
     }
+
+    /** The tool result plus the {@code status} tag recorded on the span; errors are values, not exceptions. */
+    private record Outcome(Object content, String status) {}
 
     private static CallToolResult error(String message) {
         return CallToolResult.builder().isError(true).addTextContent(message).build();
     }
 
-    private <T> T tool(String name, Supplier<T> body) {
-        return tool(name, ignored -> "ok", body);
+    private static Outcome errorOutcome(String message) {
+        return new Outcome(error(message), "error");
     }
 
-    private <T> T tool(String name, Function<T, String> status, Supplier<T> body) {
+    private Object call(String name, Supplier<Outcome> body) {
         return Observations.observe(observations, "rag.mcp.tool", Map.of("tool", name),
-                result -> Map.of("status", status.apply(result)), body);
+                outcome -> Map.of("status", outcome.status()), body).content();
     }
 }

@@ -57,6 +57,20 @@ class McpProtocolIT extends IntegrationTest {
             assertThat(tool.get("annotations").get("readOnlyHint").asBoolean()).isTrue();
             assertThat(tool.get("inputSchema").get("properties").has("context")).isFalse();
         }
+
+        var search = tool(tools, "search_docs");
+        assertThat(search.get("inputSchema").get("properties").has("query")).isTrue();
+        assertThat(search.get("inputSchema").get("properties").has("topK")).isTrue();
+        assertThat(search.get("inputSchema").get("properties").has("mode")).isTrue();
+        assertThat(strings(search.get("inputSchema").get("required"))).containsExactly("query");
+
+        var answer = tool(tools, "answer_question");
+        assertThat(answer.get("inputSchema").get("properties").has("question")).isTrue();
+        assertThat(strings(answer.get("inputSchema").get("required"))).containsExactly("question");
+
+        var section = tool(tools, "get_section");
+        assertThat(section.get("inputSchema").get("properties").has("sectionId")).isTrue();
+        assertThat(strings(section.get("inputSchema").get("required"))).containsExactly("sectionId");
     }
 
     @Test
@@ -65,7 +79,16 @@ class McpProtocolIT extends IntegrationTest {
         assertThat(McpHttp.failed(r)).isTrue();
     }
 
+    static JsonNode tool(JsonNode tools, String name) {
+        return StreamSupport.stream(tools.spliterator(), false)
+                .filter(t -> t.get("name").asString().equals(name)).findFirst().orElseThrow();
+    }
+
     static java.util.List<String> names(JsonNode tools) {
         return StreamSupport.stream(tools.spliterator(), false).map(t -> t.get("name").asString()).toList();
+    }
+
+    static java.util.List<String> strings(JsonNode array) {
+        return StreamSupport.stream(array.spliterator(), false).map(JsonNode::asString).toList();
     }
 }
