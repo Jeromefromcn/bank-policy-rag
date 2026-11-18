@@ -87,9 +87,20 @@ public class AskService {
         this.validator = new CitationValidator(props.ask().minOverlap());
     }
 
+    /** The REST entry point: endpoint {@code ask} and conversation memory on, as before spec 06. */
     public AskResponse ask(String question, int topK, Mode mode, boolean rerank, String conversationId,
             Principal principal) {
-        List<Turn> history = conversationId == null ? List.of()
+        return askDetailed(question, topK, mode, rerank, conversationId, principal, "ask", true).response();
+    }
+
+    /**
+     * The shared answer path (spec 06 §4.2). {@code endpoint} labels metrics and the audit record;
+     * {@code rememberConversation = false} neither reads history nor creates or appends a conversation.
+     * {@link AskResult#hits()} lets the MCP tool add each citation's section id without changing the REST DTO.
+     */
+    public AskResult askDetailed(String question, int topK, Mode mode, boolean rerank, String conversationId,
+            Principal principal, String endpoint, boolean rememberConversation) {
+        List<Turn> history = !rememberConversation || conversationId == null ? List.of()
                 : conversations.history(conversationId, principal).orElseThrow(ApiException::notFound);
         String answerId = "a_" + UlidCreator.getMonotonicUlid();
 
@@ -104,16 +115,16 @@ public class AskService {
         var usage = rewrite == null ? r.usage() : r.usage().plus(rewrite.promptTokens(), rewrite.completionTokens());
         long rewriteMs = rewrite == null ? 0 : rewrite.latencyMs();
         AuditRecord record = askRecord(outcome, question, rewrite == null ? null : query, principal, topK, mode, rerank,
-                usage, rewriteMs);
+                usage, rewriteMs, endpoint);
 
         long writeMs;
         try {
             writeMs = audit.write(record);
         } catch (RuntimeException e) {
-            metrics.request("ask", "error");
+            metrics.request(endpoint, "error");
             throw e;
         }
-        metrics.request("ask", r.status().equals("ANSWERED") ? "answered" : "refused");
+        metrics.request(endpoint, r.status().equals("ANSWERED") ? "answered" : "refused");
         if (r.status().equals("REFUSED")) {
             metrics.refusal(r.refusalReason());
         }
@@ -123,10 +134,14 @@ public class AskService {
                 new AskResponse.Latency(lat.retrieval(), lat.rerank(), lat.generation(), rewriteMs,
                         outcome.probeMs() + writeMs), null, null);
 
-        String id = conversationId == null ? conversations.create(principal) : conversationId;
-        conversations.append(id, principal, new Turn(question, rewrite == null ? null : query, r.status(), r.answer()));
-        return new AskResponse(audited.answerId(), audited.status(), audited.refusalReason(), audited.answer(),
-                audited.citations(), audited.usage(), audited.latencyMs(), id, rewrite == null ? null : query);
+        String id = null;
+        if (rememberConversation) {
+            id = conversationId == null ? conversations.create(principal) : conversationId;
+            conversations.append(id, principal, new Turn(question, rewrite == null ? null : query, r.status(), r.answer()));
+        }
+        return new AskResult(new AskResponse(audited.answerId(), audited.status(), audited.refusalReason(),
+                audited.answer(), audited.citations(), audited.usage(), audited.latencyMs(), id,
+                rewrite == null ? null : query), outcome.hits());
     }
 
     private AnswerOutcome answer(String answerId, String question, int topK, Mode mode, boolean rerank,
@@ -204,7 +219,7 @@ public class AskService {
     }
 
     private AuditRecord askRecord(AnswerOutcome o, String question, String rewritten, Principal principal, int topK,
-            Mode mode, boolean rerank, AskResponse.Usage usage, long rewriteMs) {
+            Mode mode, boolean rerank, AskResponse.Usage usage, long rewriteMs, String endpoint) {
         AskResponse r = o.response();
         Map<String, String> meta = indexAdmin.aliasInfo(props.retrieval().chunksTarget(props.envPrefix()))
                 .map(ChunkIndexAdmin.AliasInfo::meta).orElse(Map.of());
@@ -223,7 +238,7 @@ public class AskService {
         Integer maxTokens = env.getProperty("spring.ai.deepseek.chat.options.max-tokens", Integer.class);
         PromptRenderer.Rendered rendered = o.prompt();
         return new AuditRecord(r.answerId(), null, Instant.now().toString(), audit.traceId(), principal.name(),
-                principal.clearance().wire(), "ask", question, rewritten,
+                principal.clearance().wire(), endpoint, question, rewritten,
                 new AuditRecord.Retrieval(mode.name(), topK, rerank, o.bestVector(), o.bestRerank(), hits),
                 rendered == null ? null : renderer.templateVersion(),
                 rendered == null ? null : rendered.text(),
@@ -242,6 +257,13 @@ public class AskService {
         return new AskResponse(answerId, "REFUSED", reason, null, List.of(),
                 usage == null ? new AskResponse.Usage(null, null) : usage,
                 new AskResponse.Latency(retrievalMs, rerankMs, generationMs, 0, auditMs), null, null);
+    }
+
+    /** One answer plus the retrieved hits it was produced from; MCP uses the hits to expose section ids. */
+    public record AskResult(AskResponse response, List<SearchHit> hits) {
+        public AskResult {
+            hits = List.copyOf(hits);
+        }
     }
 
     private record AnswerOutcome(AskResponse response, List<SearchHit> hits, PromptRenderer.Rendered prompt,
