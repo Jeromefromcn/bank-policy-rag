@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import rag.app.conversation.ConversationStore;
 import rag.app.es.ChunkIndexAdmin;
 import rag.app.es.ChunkWriter;
+import rag.app.es.SectionDocument;
+import rag.app.es.SectionWriter;
 import rag.app.support.Http;
 import rag.app.support.IntegrationTest;
 import rag.app.support.McpHttp;
@@ -26,10 +29,12 @@ import tools.jackson.databind.json.JsonMapper;
 class McpToolIT extends IntegrationTest {
 
     static final String QUERY = "tolerance for disruption";
+    static final String SECTIONS_INDEX = "t_mcp_tool-sections-struct400-v1";
     static final JsonMapper JSON = JsonMapper.builder().build();
 
     @Autowired ChunkIndexAdmin admin;
     @Autowired ChunkWriter writer;
+    @Autowired SectionWriter sections;
     @Autowired StubChatModel stub;
     @MockitoSpyBean ConversationStore conversations;
 
@@ -37,6 +42,16 @@ class McpToolIT extends IntegrationTest {
     void setUp() {
         stub.reset();
         TestIndex.rebuild(admin, writer, "t_mcp_tool", TestIndex.mixed(QUERY));
+        if (!admin.exists(SECTIONS_INDEX)) {
+            admin.createSections(SECTIONS_INDEX, Map.of("corpusVersion", "abcdef123456",
+                    "chunkerVersion", "structural-v1-400-cl100k"));
+            sections.bulkIndex(SECTIONS_INDEX, List.of(
+                    new SectionDocument("sec-public", "spm-x", "Title spm-x", "1", "regulatory", List.of("1"),
+                            List.of(), "public", "public section text", "abcdef123456"),
+                    new SectionDocument("sec-restricted", "eb-secret", "Title eb-secret", "1", "internal", List.of("9"),
+                            List.of(), "restricted", "restricted section text", "abcdef123456")));
+            admin.pointAlias("t_mcp_tool-sections", SECTIONS_INDEX);
+        }
     }
 
     @Test
@@ -100,5 +115,24 @@ class McpToolIT extends IntegrationTest {
         assertThat(mcp.get("status").asString()).isEqualTo(rest.get("status").asString());
         assertThat(mcp.get("refusalReason").asString()).isEqualTo(rest.get("refusalReason").asString());
         assertThat(stub.calls()).isZero();
+    }
+
+    @Test
+    void getSectionReturnsTheFullText() {
+        var r = McpHttp.callTool(port, KEY, "get_section", Map.of("sectionId", "sec-public"));
+        assertThat(McpHttp.isError(r)).isFalse();
+        var body = McpHttp.text(r);
+        assertThat(body.get("sectionId").asString()).isEqualTo("sec-public");
+        assertThat(body.get("content").asString()).isEqualTo("public section text");
+        assertThat(body.get("classification").asString()).isEqualTo("public");
+    }
+
+    @Test
+    void hiddenAndUnknownSectionsAreIdenticalForAPublicCaller() {
+        var hidden = McpHttp.callTool(port, PUBLIC_KEY, "get_section", Map.of("sectionId", "sec-restricted"));
+        var unknown = McpHttp.callTool(port, PUBLIC_KEY, "get_section", Map.of("sectionId", "no-such-section"));
+        assertThat(McpHttp.isError(hidden)).isTrue();
+        assertThat(McpHttp.isError(unknown)).isTrue();
+        assertThat(McpHttp.message(hidden)).isEqualTo(McpHttp.message(unknown));
     }
 }

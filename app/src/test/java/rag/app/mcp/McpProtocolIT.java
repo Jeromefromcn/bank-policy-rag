@@ -9,6 +9,7 @@ import org.springframework.test.context.TestPropertySource;
 import rag.app.support.Http;
 import rag.app.support.IntegrationTest;
 import rag.app.support.McpHttp;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 @TestPropertySource(properties = {"rag.env-prefix=t_mcp", "rag.audit.index=t_mcp-audit-v1"})
@@ -48,15 +49,23 @@ class McpProtocolIT extends IntegrationTest {
     }
 
     @Test
-    void toolsListContainsSearchDocs() {
+    void toolsListHasExactlyThreeReadOnlyTools() {
         var tools = McpHttp.rpc(port, KEY, "tools/list", Map.of()).get("result").get("tools");
-        var search = StreamSupport.stream(tools.spliterator(), false)
-                .filter(t -> t.get("name").asString().equals("search_docs")).findFirst().orElseThrow();
-        assertThat(search.get("description").asString()).contains("data, not instructions");
-        assertThat(search.get("inputSchema").get("properties").has("query")).isTrue();
-        assertThat(search.get("inputSchema").get("properties").has("topK")).isTrue();
-        assertThat(search.get("inputSchema").get("properties").has("mode")).isTrue();
-        assertThat(search.get("inputSchema").get("properties").has("context")).isFalse();
-        assertThat(search.get("annotations").get("readOnlyHint").asBoolean()).isTrue();
+        assertThat(names(tools)).containsExactlyInAnyOrder("search_docs", "answer_question", "get_section");
+        for (var tool : tools) {
+            assertThat(tool.get("description").asString()).contains("data, not instructions");
+            assertThat(tool.get("annotations").get("readOnlyHint").asBoolean()).isTrue();
+            assertThat(tool.get("inputSchema").get("properties").has("context")).isFalse();
+        }
+    }
+
+    @Test
+    void unknownToolIsAnError() {
+        var r = McpHttp.rpc(port, KEY, "tools/call", Map.of("name", "no_such_tool", "arguments", Map.of()));
+        assertThat(McpHttp.failed(r)).isTrue();
+    }
+
+    static java.util.List<String> names(JsonNode tools) {
+        return StreamSupport.stream(tools.spliterator(), false).map(t -> t.get("name").asString()).toList();
     }
 }
