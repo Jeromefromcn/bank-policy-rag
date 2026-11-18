@@ -28,10 +28,18 @@ class McpProtocolIT extends IntegrationTest {
     }
 
     @Test
+    void invalidKeyIs401() {
+        var r = McpHttp.raw(port, "not-a-configured-key", McpHttp.initializeBody());
+        assertThat(r.status()).isEqualTo(401);
+        assertThat(r.contentType()).startsWith("application/problem+json");
+    }
+
+    @Test
     void initializeIsStatelessAndNamed() {
         var rpc = McpHttp.initialize(port, KEY);
         assertThat(rpc.get("result").get("serverInfo").get("name").asString())
                 .isEqualTo("bank-policy-rag");
+        assertThat(rpc.get("result").get("serverInfo").get("version").asString()).isEqualTo("1.0.0");
         assertThat(rpc.get("result").get("capabilities").has("tools")).isTrue();
     }
 
@@ -77,6 +85,14 @@ class McpProtocolIT extends IntegrationTest {
     void unknownToolIsAnError() {
         var r = McpHttp.rpc(port, KEY, "tools/call", Map.of("name", "no_such_tool", "arguments", Map.of()));
         assertThat(McpHttp.failed(r)).isTrue();
+    }
+
+    @Test
+    void malformedArgumentsAreAnError() {
+        var r = McpHttp.rpc(port, KEY, "tools/call", Map.of("name", "search_docs",
+                "arguments", Map.of("query", "x", "topK", "abc")));
+        assertThat(McpHttp.isError(r)).isTrue();
+        assertThat(McpHttp.message(r)).contains("input validation failed");
     }
 
     static JsonNode tool(JsonNode tools, String name) {

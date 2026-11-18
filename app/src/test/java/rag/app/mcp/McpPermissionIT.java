@@ -92,6 +92,7 @@ class McpPermissionIT extends IntegrationTest {
                 Map.of("question", "zebra quantum harvest")));
         assertThat(hidden.get("status")).isEqualTo(absent.get("status"));
         assertThat(hidden.has("refusalReason")).isEqualTo(absent.has("refusalReason"));
+        assertThat(hidden.path("refusalReason").asString()).isEqualTo(absent.path("refusalReason").asString());
         assertThat(hidden.get("citations").size()).isZero();
         assertThat(absent.get("citations").size()).isZero();
     }

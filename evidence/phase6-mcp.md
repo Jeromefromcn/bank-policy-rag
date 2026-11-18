@@ -5,7 +5,8 @@
 - **Purpose**: prove the three read-only MCP tools work over stateless Streamable HTTP with the same API-key
   identity, clearance pre-filter and audit trail as REST, and record a real agent using them.
 
-All results below come from the runs described here, at commit `3979b99` with a clean working tree. No source text
+The live runs (§1–§4) are at commit `3979b99` with a clean working tree. The deterministic suite in §6 ran after
+the review fixes, which changed metrics and span labelling only, not tool output. No source text
 is reproduced: questions, item ids, tool arguments and one-line result summaries only.
 
 ## 1. Environment
@@ -171,6 +172,6 @@ record per completed call, fail-closed audit, `mcp:answer_question` replay, and 
 | `./gradlew :core:test :eval-runner:test --rerun-tasks` | `BUILD SUCCESSFUL` in 21 s, 10 tasks executed |
 | `scripts/check-compose-limits.sh` | `ok: 5 services limited` |
 
-Test XML across the three modules: **506 tests in 85 classes, 0 failures, 0 errors, 0 skipped**. The MCP classes
-contribute 37: `McpToolContextTest` 2, `McpProtocolIT` 6, `McpToolIT` 10, `McpPermissionIT` 4, `McpAuditIT` 4,
+Test XML across the three modules: **509 tests in 85 classes, 0 failures, 0 errors, 0 skipped**. The MCP classes
+contribute 40: `McpToolContextTest` 2, `McpProtocolIT` 8, `McpToolIT` 11, `McpPermissionIT` 5, `McpAuditIT` 4,
 `McpReplayIT` 4, `McpObservationIT` 6.
